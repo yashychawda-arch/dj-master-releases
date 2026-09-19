@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
-  "notes": "Serato crates, delete to the Recycle Bin, and song requests download as MP3.",
+  "version": "1.9.0",
+  "notes": "Booth mode: a public QR for the floor, with every request waiting for your approval.",
   "url": "https://github.com/yashychawda-arch/dj-master/releases/latest"
 }
