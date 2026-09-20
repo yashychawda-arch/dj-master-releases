@@ -1,5 +1,5 @@
 {
-  "version": "1.10.0",
-  "notes": "Folders stay folders: a folder you paste in keeps its shape in the crate, rekordbox and Serato.",
+  "version": "1.11.0",
+  "notes": "The phone page rebuilt: one wide row per code, and the booth link finally readable.",
   "url": "https://github.com/yashychawda-arch/dj-master/releases/latest"
 }
