@@ -1,5 +1,5 @@
 {
-  "version": "1.12.5",
-  "notes": "The booth QR stays on screen, and the app keeps checking the link instead of condemning it once.",
+  "version": "1.12.6",
+  "notes": "Booth links left open by an earlier run are closed, and a link that isn't answering says why.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
