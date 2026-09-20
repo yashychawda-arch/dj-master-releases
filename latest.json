@@ -1,5 +1,5 @@
 {
-  "version": "1.12.2",
-  "notes": "Release notes show once, and the booth link always loads a page you can send songs from.",
+  "version": "1.12.3",
+  "notes": "The booth link is checked before a QR is drawn, so it can't send anyone to a blank page.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
