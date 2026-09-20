@@ -1,5 +1,5 @@
 {
-  "version": "1.12.7",
-  "notes": "A Mac's installation ID no longer drifts, and the installers print it when they finish.",
+  "version": "1.12.8",
+  "notes": "The booth link is proved to reach your computer before a QR code is drawn from it.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
