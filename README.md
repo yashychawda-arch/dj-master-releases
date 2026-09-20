@@ -1,32 +1,20 @@
-# Yoshi C's DJ Master — version file
+# Yoshi C's DJ Master — releases
 
-This repository exists for one reason: so a copy of **Yoshi C's DJ Master** can ask whether a newer
-version is out.
+Installers only. The source lives in a private repository.
 
-It contains **`latest.json` and nothing else**. There is no source code here, and there never will be —
-the app's source is private.
+`latest.json` is what the app reads when it checks for an update: the current version, one line about
+it, and where to get it. Nothing about you or your computer is sent when it looks.
 
-```json
-{
-  "version": "1.8.0",
-  "notes": "One short line about what changed.",
-  "url": "https://github.com/yashychawda-arch/dj-master/releases/latest"
-}
-```
+Each release carries two files:
 
-The app fetches that one file over HTTPS, compares `version` with its own, and if it is behind, shows a
-line on its home screen. That is the entire exchange:
+- `Yoshi C's DJ Master <version> Setup.exe` — Windows. Run it.
+- `Yoshi C's DJ Master <version> (Mac).zip` — Mac. Unzip it and run `Install.command`
+  (right-click → Open the first time, since it isn't signed yet).
 
-- nothing is sent about the person, their music, their crate or their computer — it is a plain GET;
-- there is no account, no identifier and no logging beyond GitHub's own;
-- it can be switched off in the app under **Settings → Tell me when a new version is out**, and with it
-  off nothing is requested at all.
+**You need an activation key to run it.** The app shows an installation ID for your computer the first
+time it opens; send that to Yoshi and he'll send a key back. One key works on one computer.
 
-Downloads live on the private repository's [Releases page](https://github.com/yashychawda-arch/dj-master/releases),
-which Yoshi shares directly.
+Set `min_version` in `latest.json` to mark an update as required: anything older says so plainly and
+can't dismiss the notice.
 
-## Releasing
-
-Bump `version` here **after** the release is published, so nobody is pointed at a download that isn't
-there yet. Keep `notes` to one sentence — the app trims it to 160 characters and strips anything that
-isn't plain text.
+© 2026 Yoshi C. Licensed for personal use — see `LICENSE.txt` inside the installer.
