@@ -1,5 +1,5 @@
 {
-  "version": "1.12.6",
-  "notes": "Booth links left open by an earlier run are closed, and a link that isn't answering says why.",
+  "version": "1.12.7",
+  "notes": "A Mac's installation ID no longer drifts, and the installers print it when they finish.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
