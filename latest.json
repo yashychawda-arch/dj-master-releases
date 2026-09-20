@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
-  "notes": "Booth mode: a public QR for the floor, with every request waiting for your approval.",
+  "version": "1.10.0",
+  "notes": "Folders stay folders: a folder you paste in keeps its shape in the crate, rekordbox and Serato.",
   "url": "https://github.com/yashychawda-arch/dj-master/releases/latest"
 }
