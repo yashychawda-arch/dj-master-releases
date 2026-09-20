@@ -1,5 +1,5 @@
 {
-  "version": "1.12.1",
-  "notes": "Activation: one key, one computer. Checked offline, and only when the app opens.",
+  "version": "1.12.2",
+  "notes": "Release notes show once, and the booth link always loads a page you can send songs from.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
