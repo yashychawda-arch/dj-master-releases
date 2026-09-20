@@ -1,5 +1,5 @@
 {
-  "version": "1.12.8",
-  "notes": "The booth link is proved to reach your computer before a QR code is drawn from it.",
+  "version": "1.12.9",
+  "notes": "The booth link no longer picks up another tunnel's settings - the 404 behind every blank page is fixed.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
