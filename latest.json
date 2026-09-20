@@ -1,5 +1,5 @@
 {
-  "version": "1.12.9",
-  "notes": "The booth link no longer picks up another tunnel's settings - the 404 behind every blank page is fixed.",
+  "version": "1.13.0",
+  "notes": "A smoothness pass: half the layout work, nothing animating width or height, and a three-second-shorter opening.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
