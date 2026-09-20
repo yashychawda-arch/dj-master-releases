@@ -1,5 +1,5 @@
 {
-  "version": "1.12.4",
-  "notes": "The release notes finally stay gone once you've read them.",
+  "version": "1.12.5",
+  "notes": "The booth QR stays on screen, and the app keeps checking the link instead of condemning it once.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
