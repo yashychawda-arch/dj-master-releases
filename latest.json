@@ -1,5 +1,5 @@
 {
-  "version": "1.12.3",
-  "notes": "The booth link is checked before a QR is drawn, so it can't send anyone to a blank page.",
+  "version": "1.12.4",
+  "notes": "The release notes finally stay gone once you've read them.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
