@@ -1,5 +1,5 @@
 {
-  "version": "1.13.0",
-  "notes": "A smoothness pass: half the layout work, nothing animating width or height, and a three-second-shorter opening.",
+  "version": "1.13.1",
+  "notes": "Installing an update now clears out the files it replaces, instead of leaving them behind for good.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
