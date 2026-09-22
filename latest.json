@@ -1,5 +1,5 @@
 {
-  "version": "1.15.0",
-  "notes": "A pre-flight check before a gig, live versions folded out of search, duplicate warnings and free space.",
+  "version": "1.16.0",
+  "notes": "Shortcuts you choose yourself - and which now actually work - plus a pre-flight that folds away when it passes.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
