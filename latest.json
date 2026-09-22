@@ -1,5 +1,5 @@
 {
-  "version": "1.13.1",
-  "notes": "Installing an update now clears out the files it replaces, instead of leaving them behind for good.",
+  "version": "1.14.0",
+  "notes": "Font licences, a privacy notice, a list of what the app is built from, and text you can actually read.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
