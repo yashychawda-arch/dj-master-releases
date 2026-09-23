@@ -1,5 +1,5 @@
 {
-  "version": "1.18.5",
-  "notes": "Turning a request down in booth view clears it from Downloads; arrow keys scroll the crate, not the page; no more square on the Camelot wheel.",
+  "version": "1.19.0",
+  "notes": "Star ratings and energy go to rekordbox, a lit read-out, and an app that moves: filters that show what changed, stacked toasts, and a new way in and out.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
