@@ -1,5 +1,5 @@
 {
-  "version": "1.18.1",
-  "notes": "Booth view handles a quiet floor properly: real full screen, a big clock, the request code, and a crate that says what to do.",
+  "version": "1.18.2",
+  "notes": "Booth view folds to one column when the floor is quiet, carries your accent glow, and remembers what went out tonight.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
