@@ -1,0 +1,5 @@
+{
+  "version": "1.18.3",
+  "notes": "Booth view keeps one layout when a request lands, Escape leaves it, and walking in opens your public link.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
+}
