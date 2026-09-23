@@ -1,5 +1,5 @@
 {
-  "version": "1.18.0",
-  "notes": "A booth view for while you're playing, one command bar for everything, and six things the crate couldn't do.",
+  "version": "1.18.1",
+  "notes": "Booth view handles a quiet floor properly: real full screen, a big clock, the request code, and a crate that says what to do.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
