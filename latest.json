@@ -1,5 +1,5 @@
 {
-  "version": "1.18.3",
-  "notes": "Booth view keeps one layout when a request lands, Escape leaves it, and walking in opens your public link.",
+  "version": "1.18.4",
+  "notes": "The booth link only shows a guest their own requests and can no longer stop your downloads; arrow keys, the booth progress bar and multi-track drag all fixed.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
