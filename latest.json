@@ -1,5 +1,5 @@
 {
-  "version": "1.19.0",
-  "notes": "Star ratings and energy go to rekordbox, a lit read-out, and an app that moves: filters that show what changed, stacked toasts, and a new way in and out.",
+  "version": "1.19.1",
+  "notes": "Slower, calmer motion - most on the way in, sign-in and lock - and the working light on downloads fixed.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
