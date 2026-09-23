@@ -1,5 +1,5 @@
 {
-  "version": "1.18.4",
-  "notes": "The booth link only shows a guest their own requests and can no longer stop your downloads; arrow keys, the booth progress bar and multi-track drag all fixed.",
+  "version": "1.18.5",
+  "notes": "Turning a request down in booth view clears it from Downloads; arrow keys scroll the crate, not the page; no more square on the Camelot wheel.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
