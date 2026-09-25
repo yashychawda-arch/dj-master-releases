@@ -10,10 +10,6 @@
     return node;
   };
   const params = new URLSearchParams(location.search);
-  const pairing = params.get("pair") && /^https?:\/\//.test(params.get("pc") || "") && params.get("key")
-    ? { code: params.get("pair"), pc: params.get("pc"), key: params.get("key"), dj: params.get("dj") || "", accent: params.get("accent") || "" }
-    : null;
-  let wanted = params.get("req");
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
   const CACHE = "djm-alerts";
@@ -22,7 +18,17 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode: pairing still works */ } },
   };
-
+  const normal = (code) => String(code || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  const pretty = (code) => { const c = normal(code); return c.length > 3 ? c.slice(0, 3) + " " + c.slice(3) : c; };
+  // Which computer this phone pairs with. An iPhone only ever opens its Home Screen app at the address
+  // it was added with, so a later pairing - a new code typed in - has to work from what was kept here.
+  const fromUrl = /^https?:\/\//.test(params.get("pc") || "") && params.get("key")
+    ? { pc: params.get("pc"), key: params.get("key"), dj: params.get("dj") || "", accent: params.get("accent") || "" } : null;
+  if (fromUrl) store.set("computer", JSON.stringify(fromUrl));
+  const computer = fromUrl || (() => { try { return JSON.parse(store.get("computer") || "null"); } catch (e) { return null; } })();
+  const urlCode = normal(params.get("pair"));
+  const fresh = () => !!urlCode && store.get("tried") !== urlCode;     // a code in the address not tried yet
+  let wanted = params.get("req");
   async function readState() {
     try {
       const hit = await (await caches.open(CACHE)).match(STATE);
@@ -59,9 +65,32 @@
   }
 
   // ---------- pairing ----------
+  function showPair(code) {
+    accent(computer.accent);
+    $("who").textContent = computer.dj || "";
+    const homeFirst = isIOS && !standalone;
+    $("ios-steps").hidden = !homeFirst;
+    $("ios-why").hidden = !homeFirst;
+    $("turn-on").hidden = homeFirst;
+    $("code-field").hidden = homeFirst;
+    $("turn-on").disabled = false;
+    $("code").value = pretty(code);
+    // Just tried, and nothing has arrived yet: say so, rather than asking for a code all over again.
+    const recent = store.get("tried") && Date.now() - Number(store.get("triedAt") || 0) < 10 * 60000;
+    say($("pair-status"), code || homeFirst ? ""
+      : recent ? "Waiting for DJ Master's test alert. If nothing arrives in a minute, press Test in DJ Master - or type a new code and turn alerts on again."
+      : "Type the code DJ Master shows under Phone > Request alerts.");
+    show("pair");
+  }
+
   async function turnOn() {
     const button = $("turn-on");
     const out = $("pair-status");
+    const code = normal($("code").value);
+    if (code.length !== 6) {
+      $("code").focus();
+      return say(out, "Type the six-character code DJ Master shows under Phone > Request alerts.", "warn");
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       return say(out, isIOS ? "Open DJ Alerts from your Home Screen first. Safari itself can't show these."
                             : "This browser can't show alerts. On Android, open this page in Chrome.", "warn");
@@ -79,15 +108,18 @@
       await navigator.serviceWorker.ready;
       const old = await reg.pushManager.getSubscription();
       if (old) await old.unsubscribe();                 // a fresh address, tied to this computer's key
-      const sub = (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(pairing.key) })).toJSON();
-      store.set("pairedCode", pairing.code);
+      const sub = (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(computer.key) })).toJSON();
+      store.set("tried", code);
+      store.set("triedAt", String(Date.now()));
+      // Paired means an alert has actually arrived - the service worker marks it when DJ Master's test
+      // alert lands. Until then this phone doesn't claim to be listening.
       const s = await readState();
-      Object.assign(s, { dj: pairing.dj, accent: pairing.accent });
+      Object.assign(s, { paired: false, dj: computer.dj, accent: computer.accent });
       await writeState(s);
       say(out, "Handing this phone's alert address to DJ Master…", "good");
       // A plain-http address on your Wi-Fi can't be called from this page, but it can be opened.
-      location.href = pairing.pc.replace(/\/+$/, "") + "/alerts/pair?" + new URLSearchParams({
-        code: pairing.code, sub: b64u(JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys })), name: deviceName() });
+      location.href = computer.pc.replace(/\/+$/, "") + "/alerts/pair?" + new URLSearchParams({
+        code, sub: b64u(JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys })), name: deviceName() });
     } catch (e) {
       button.disabled = false;
       say(out, "Couldn't turn alerts on: " + ((e && e.message) || e), "warn");
@@ -203,34 +235,40 @@
   }
 
   // ---------- start ----------
+  // Which screen: the list once an alert has arrived; pairing while there's a computer to pair with;
+  // otherwise, how to start. A code in the address that hasn't been tried always gets its chance.
+  async function route() {
+    const saved = await readState();
+    if (saved.paired && !fresh()) {
+      show("waiting");
+      return load();
+    }
+    if (computer) return showPair(fresh() ? urlCode : "");
+    show("unpaired");
+  }
+  // Back from DJ Master's "Alerts are on" page, or its test alert just landed: on to the list.
+  async function maybePaired() {
+    if (!$("pair").hidden && store.get("tried") && !fresh() && (await readState()).paired) route();
+  }
+
+  $("turn-on").onclick = turnOn;
+  $("code").addEventListener("keydown", (e) => { if (e.key === "Enter") turnOn(); });
+  $("pair-again").onclick = () => (computer ? showPair("") : show("unpaired"));
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
     navigator.serviceWorker.addEventListener("message", (e) => {
       if (!e.data || !(e.data.type === "alert" || e.data.type === "open")) return;
       if (e.data.type === "open" && e.data.id) wanted = e.data.id;
       if (!$("waiting").hidden) load();
+      else maybePaired();
     });
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("waiting").hidden) load(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    if (!$("waiting").hidden) load();
+    else maybePaired();
+  });
+  addEventListener("pageshow", (e) => { if (e.persisted) maybePaired(); });
   setInterval(() => { if (!document.hidden && !$("waiting").hidden) refresh(); }, 30000);
-
-  (async () => {
-    const saved = await readState();
-    const pairedHere = pairing && store.get("pairedCode") === pairing.code;
-    if (pairing && !pairedHere) {
-      accent(pairing.accent);
-      $("who").textContent = pairing.dj;
-      const homeFirst = isIOS && !standalone;
-      $("ios-steps").hidden = !homeFirst;
-      $("ios-why").hidden = !homeFirst;
-      $("turn-on").hidden = homeFirst;
-      $("turn-on").onclick = turnOn;
-      return show("pair");
-    }
-    if (saved.paired || store.get("pairedCode")) {
-      show("waiting");
-      return load();
-    }
-    show("unpaired");
-  })();
+  route();
 })();
