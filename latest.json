@@ -1,5 +1,5 @@
 {
-  "version": "1.20.0",
-  "notes": "Covers and each track's shape in your crate, a lit moment when a download lands, and booth view that moves in and out; the command bar's dark column and the hidden Delete button fixed.",
+  "version": "1.21.0",
+  "notes": "Request alerts on your phone's lock screen - tap one to play the song or turn it down - a card over rekordbox when you're looking elsewhere, and a fix for the window going blank after switching apps.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
