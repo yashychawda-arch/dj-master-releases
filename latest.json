@@ -1,5 +1,5 @@
 {
-  "version": "1.21.0",
-  "notes": "Request alerts on your phone's lock screen - tap one to play the song or turn it down - a card over rekordbox when you're looking elsewhere, and a fix for the window going blank after switching apps.",
+  "version": "1.21.1",
+  "notes": "From the next update on, updates install themselves - no more System Settings or \"Windows protected your PC\" - and on a Mac a request shows the corner card instead of a Script Editor banner.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
