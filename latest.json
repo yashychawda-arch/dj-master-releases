@@ -1,5 +1,5 @@
 {
-  "version": "1.21.3",
-  "notes": "QR codes that scan on Windows, pairing that no longer says a code ran out when it worked, and the Mac card up in the top-right corner.",
+  "version": "1.21.4",
+  "notes": "Windows pairing and the booth link no longer reach a hidden old copy of DJ Master, and QR codes go full screen only when you ask.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
