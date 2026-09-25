@@ -1,5 +1,5 @@
 {
-  "version": "1.21.2",
-  "notes": "The corner card goes by itself after a few seconds, Mac notices come on DJ Master's own card instead of Script Editor, and booth view's download light goes all the way round.",
+  "version": "1.21.3",
+  "notes": "QR codes that scan on Windows, pairing that no longer says a code ran out when it worked, and the Mac card up in the top-right corner.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
