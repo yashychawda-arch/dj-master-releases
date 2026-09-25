@@ -27,7 +27,10 @@
   if (fromUrl) store.set("computer", JSON.stringify(fromUrl));
   const computer = fromUrl || (() => { try { return JSON.parse(store.get("computer") || "null"); } catch (e) { return null; } })();
   const urlCode = normal(params.get("pair"));
-  const fresh = () => !!urlCode && store.get("tried") !== urlCode;     // a code in the address not tried yet
+  // A code in the address gets one go: once anything has been tried from this address, it's spent - the
+  // pairing may have gone through with a code typed in instead. Old-style codes (before 1.21.0's six
+  // letters) never count.
+  const fresh = () => urlCode.length === 6 && store.get("spent") !== urlCode;
   let wanted = params.get("req");
   async function readState() {
     try {
@@ -111,6 +114,7 @@
       const sub = (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(computer.key) })).toJSON();
       store.set("tried", code);
       store.set("triedAt", String(Date.now()));
+      if (urlCode) store.set("spent", urlCode);
       // Paired means an alert has actually arrived - the service worker marks it when DJ Master's test
       // alert lands. Until then this phone doesn't claim to be listening.
       const s = await readState();
