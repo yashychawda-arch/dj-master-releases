@@ -1,5 +1,5 @@
 {
-  "version": "1.19.1",
-  "notes": "Slower, calmer motion - most on the way in, sign-in and lock - and the working light on downloads fixed.",
+  "version": "1.20.0",
+  "notes": "Covers and each track's shape in your crate, a lit moment when a download lands, and booth view that moves in and out; the command bar's dark column and the hidden Delete button fixed.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
