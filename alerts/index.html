@@ -26,7 +26,7 @@
 <main>
   <!-- First visit, from the QR code in DJ Master. -->
   <section id="pair" class="panel" hidden>
-    <span class="label">Lock-screen alerts</span>
+    <span class="label">Request alerts</span>
     <h1>Know the moment someone <em>asks.</em></h1>
     <p>This phone gets a notification whenever someone requests a song through your booth link, even when it's locked in your pocket. Tap it to play the song or turn it down.</p>
     <ol class="steps" id="ios-steps" hidden>
@@ -35,6 +35,10 @@
       <li>Open <b>DJ Alerts</b> from your Home Screen and tap <b>Turn on alerts</b> there.</li>
     </ol>
     <p class="note" id="ios-why" hidden>iPhone only lets an app on your Home Screen show notifications, so this is a one-time step.</p>
+    <label class="field" id="code-field">
+      <span>Code from DJ Master</span>
+      <input id="code" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="9" placeholder="••• •••" aria-describedby="pair-status">
+    </label>
     <button class="go" id="turn-on" type="button">Turn on alerts</button>
     <p class="status" id="pair-status" role="status"></p>
   </section>
@@ -54,11 +58,11 @@
   <section id="unpaired" class="panel" hidden>
     <span class="label">Not paired</span>
     <h1>Pair this phone in <em>DJ Master.</em></h1>
-    <p>On your computer, open DJ Master, go to <b>Phone</b> and press <b>Pair a phone</b> under Lock-screen alerts. Then scan the code with this phone's camera.</p>
+    <p>On your computer, open DJ Master, go to <b>Phone</b> and press <b>Pair a phone</b> under Request alerts. Then scan the QR code with this phone's camera.</p>
   </section>
 </main>
 
-<footer class="foot" id="foot" hidden>Paired with DJ Master on your computer. To stop these alerts, remove this phone there, under Phone.</footer>
+<footer class="foot" id="foot" hidden>Paired with DJ Master on your computer. To stop these alerts, remove this phone there, under Phone. <button type="button" class="link" id="pair-again">Pair again with a new code</button></footer>
 <script src="alerts.js"></script>
 </body>
 </html>
