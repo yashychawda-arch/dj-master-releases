@@ -1,5 +1,5 @@
 {
-  "version": "1.21.1",
-  "notes": "From the next update on, updates install themselves - no more System Settings or \"Windows protected your PC\" - and on a Mac a request shows the corner card instead of a Script Editor banner.",
+  "version": "1.21.2",
+  "notes": "The corner card goes by itself after a few seconds, Mac notices come on DJ Master's own card instead of Script Editor, and booth view's download light goes all the way round.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
