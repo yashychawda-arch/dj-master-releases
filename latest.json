@@ -1,5 +1,5 @@
 {
-  "version": "1.25.0",
-  "notes": "Your whole library in the crate: your music folders, Serato and rekordbox, taken in where they are and kept up to date.",
+  "version": "1.25.1",
+  "notes": "A tidier Settings page: no stray ENGINE label.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
