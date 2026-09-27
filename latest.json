@@ -1,5 +1,5 @@
 {
-  "version": "1.21.4",
-  "notes": "Windows pairing and the booth link no longer reach a hidden old copy of DJ Master, and QR codes go full screen only when you ask.",
+  "version": "1.21.5",
+  "notes": "The WAV button on a finished download is gone; tracks still drag from your crate as before.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
