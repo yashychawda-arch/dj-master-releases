@@ -1,5 +1,5 @@
 {
-  "version": "1.22.0",
-  "notes": "Split a crate track in the Stem Splitter, and take songs, instrumentals and acapellas back into your crate.",
+  "version": "1.22.1",
+  "notes": "Tidier folder chips: no more dashed box around each folder's name.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
