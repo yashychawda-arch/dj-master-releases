@@ -1,5 +1,5 @@
 {
-  "version": "1.26.0",
-  "notes": "Every drop, not just the first: hot cues at every drop and break, for hardstyle and EDM tracks with several.",
+  "version": "1.26.1",
+  "notes": "Small things, fixed: delete a smart crate, Clear filters when nothing matches, view counts on YouTube results, and Fix it buttons on the pre-flight check.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
