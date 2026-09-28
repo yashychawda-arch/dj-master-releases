@@ -1,5 +1,5 @@
 {
-  "version": "1.26.1",
-  "notes": "Small things, fixed: delete a smart crate, Clear filters when nothing matches, view counts on YouTube results, and Fix it buttons on the pre-flight check.",
+  "version": "1.27.0",
+  "notes": "Hot cues in Serato too: Intro, every Drop and Break, and the Outro, written into the tracks DJ Master downloaded - never over cues you've set in Serato.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
