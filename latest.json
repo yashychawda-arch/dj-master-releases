@@ -1,5 +1,5 @@
 {
-  "version": "1.30.0",
-  "notes": "A new look, and your DJ software by name: one clean typeface and plain words, Your DJ software in Settings (rekordbox, Serato or both), Undo after Reject, and a request already in your crate goes straight to your copy.",
+  "version": "1.31.0",
+  "notes": "The website's look, and things that move well: its typefaces, a Wallpaper slider to dim the smoke or turn it off, Undo when you remove something from the queue, rows that slide in with a glow, and a side menu that glides to the section you're on.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
