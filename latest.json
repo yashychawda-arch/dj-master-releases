@@ -1,5 +1,5 @@
 {
-  "version": "1.28.0",
-  "notes": "Backed up, and checked: a daily copy of your crate you can restore in two clicks, and every track checked for cut-off downloads and low-quality rips.",
+  "version": "1.30.0",
+  "notes": "A new look, and your DJ software by name: one clean typeface and plain words, Your DJ software in Settings (rekordbox, Serato or both), Undo after Reject, and a request already in your crate goes straight to your copy.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
