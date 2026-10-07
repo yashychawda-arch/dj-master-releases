@@ -1,5 +1,5 @@
 {
-  "version": "1.31.0",
-  "notes": "The website's look, and things that move well: its typefaces, a Wallpaper slider to dim the smoke or turn it off, Undo when you remove something from the queue, rows that slide in with a glow, and a side menu that glides to the section you're on.",
+  "version": "1.31.1",
+  "notes": "No more blank window: the sign-in card always shows when DJ Master is locked, and the window draws afresh after you sign in and when you bring it back from the taskbar.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
