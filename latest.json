@@ -1,5 +1,5 @@
 {
-  "version": "1.33.0",
-  "notes": "Every duplicate gone in one go: Clean up has a Delete all duplicates button that keeps the better copy of each track and sends the extra copies to the Recycle Bin, with Undo.",
+  "version": "1.34.0",
+  "notes": "Duplicates, safely: Delete all duplicates never touches a file another track still plays, and Clean up can bring back or clear tracks whose files have gone - with a progress bar.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
