@@ -1,5 +1,5 @@
 {
-  "version": "1.32.0",
-  "notes": "The giant padlock: lock DJ Master and a giant padlock snaps shut and settles into the sign-in card; sign in and it springs open and drops away as your crate comes back.",
+  "version": "1.33.0",
+  "notes": "Every duplicate gone in one go: Clean up has a Delete all duplicates button that keeps the better copy of each track and sends the extra copies to the Recycle Bin, with Undo.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
