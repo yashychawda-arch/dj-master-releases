@@ -1,5 +1,5 @@
 {
-  "version": "1.34.0",
-  "notes": "Duplicates, safely: Delete all duplicates never touches a file another track still plays, and Clean up can bring back or clear tracks whose files have gone - with a progress bar.",
+  "version": "1.35.0",
+  "notes": "The top bar can no longer slide off the window; a big crate is smooth however many tracks it holds; scans show the time left, can be cancelled, and read unread songs again.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
