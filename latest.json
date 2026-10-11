@@ -1,5 +1,5 @@
 {
   "version": "1.36.0",
-  "notes": "Two new pages - Set and Insights. A file you delete waits 30 days in a holding folder, with Undo in Settings > What changed. Listen in the app, tags and notes, voting on song requests, and VirtualDJ / Traktor playlists.",
+  "notes": "New pages: Set and Insights. Deleted files wait 30 days in a holding folder, with Undo. Listen in the app, tags, votes on requests, VirtualDJ and Traktor.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
