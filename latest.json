@@ -1,5 +1,5 @@
 {
-  "version": "1.35.0",
-  "notes": "The top bar can no longer slide off the window; a big crate is smooth however many tracks it holds; scans show the time left, can be cancelled, and read unread songs again.",
+  "version": "1.36.0",
+  "notes": "Two new pages - Set and Insights. A file you delete waits 30 days in a holding folder, with Undo in Settings > What changed. Listen in the app, tags and notes, voting on song requests, and VirtualDJ / Traktor playlists.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
