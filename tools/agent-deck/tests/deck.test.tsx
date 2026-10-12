@@ -4,6 +4,7 @@ import type { AgentInfo } from 'claude-code'
 import type { DeckAgent } from '../types'
 import { reconcile } from '../hooks/register'
 import { buildScene, describeCall, estimate, nextSteps } from '../hooks/scene'
+import { decode, encode, fileUrl, merge, openCommands, sessionEntry } from '../hooks/window'
 
 const PANE = {
   component: 'Pane',
@@ -189,4 +190,56 @@ test('an inline terminal pane stays a few lines', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /#1 Render promo videos/ })).toBeDefined()
   expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
   await ui.unmount()
+})
+
+describe('the pop-out window', () => {
+  const entry = (id: string, updatedAt: number) => ({
+    id,
+    name: id,
+    updatedAt,
+    main: { isWorking: false },
+    types: [],
+    agents: [],
+  })
+
+  test('its data file round-trips, and stale or removed sessions drop out', async () => {
+    const text = encode({ s1: entry('s1', 1000), s2: entry('s2', 1000) })
+    expect(text.startsWith('window.__deckData && window.__deckData(')).toBe(true)
+    expect(Object.keys(decode(text))).toEqual(['s1', 's2'])
+    expect(decode('garbage')).toEqual({})
+
+    const merged = merge(decode(text), 's3', entry('s3', 70_000), 70_000)
+    expect(Object.keys(merged)).toEqual(['s3'])
+    const kept = merge(decode(text), 's1', undefined, 2000)
+    expect(Object.keys(kept)).toEqual(['s2'])
+  })
+
+  test('a session entry numbers working agents first and carries their estimate', async () => {
+    const e = sessionEntry({
+      id: 's1',
+      name: 'site',
+      now: 10 * 60_000,
+      agents: [
+        agent({ id: 'x', status: 'done', endedAt: 5 }),
+        agent({ id: 'y', stepsDone: 1, stepsTotal: 2, startedAt: 9 * 60_000 }),
+      ],
+      types: [{ name: 'Explore', description: '', source: 'built-in' }],
+      main: { isWorking: true, action: 'Reading a.ts', since: 0 },
+      history: {},
+    })
+    expect(e.agents.map(a => [a.id, a.n])).toEqual([
+      ['y', 1],
+      ['x', 1],
+    ])
+    expect(e.agents[0]?.est.text).toBe('~1m 00s left (1/2 steps)')
+    expect(e.types).toEqual(['Explore'])
+  })
+
+  test('it opens as an app window first, the default browser last', async () => {
+    const win = openCommands('windows', 'C:/Users/yoshi/.claude/agent-deck/index.html')
+    expect(win[0]?.[4]).toContain("--app=file:///C:/Users/yoshi/.claude/agent-deck/index.html")
+    expect(win.at(-1)).toEqual(['explorer.exe', 'C:\\Users\\yoshi\\.claude\\agent-deck\\index.html'])
+    expect(fileUrl('/Users/yoshi/My Deck/index.html')).toBe('file:///Users/yoshi/My%20Deck/index.html')
+    expect(openCommands('linux', '/home/y/index.html')).toEqual([['xdg-open', '/home/y/index.html']])
+  })
 })

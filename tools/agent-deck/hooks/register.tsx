@@ -3,12 +3,14 @@ import type { AgentInfo, EngineInterface, Register } from 'claude-code'
 
 import type { DeckAgent, DeckStatus } from '../types'
 import { buildScene, describeCall, estimate, fmt, nextSteps } from './scene'
+import { HEARTBEAT_MS, type Os, decode, encode, merge, openCommands, sessionEntry, signature } from './window'
 
 const PANE = 'agent-deck'
 const TITLE = 'Agent deck'
 const HISTORY_KEY = 'typical-durations'
 const KEEP_FINISHED = 8
 const TICK_MS = 2000
+const WINDOW_KEY = 'window-on'
 
 const agents = atom({ plugin: 'agent-deck', key: 'agents' } as const, {})
 const types = atom({ plugin: 'agent-deck', key: 'types' } as const, [])
@@ -110,6 +112,81 @@ async function tick($: EngineInterface) {
   }
   const isBusy = m.isWorking || Object.values(await read($, agents)).some(a => isLive(a.status))
   if (isBusy) await update($, now, () => t)
+  await publish($).catch(() => undefined)
+}
+
+// --- The pop-out window ------------------------------------------------------
+// Set once the person pops the deck out; kept in the store so every later session
+// feeds the same window.
+let windowOn = false
+let lastSignature = ''
+let lastPublishedAt = 0
+
+async function deckDir($: EngineInterface): Promise<string> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? '.'
+  return `${home.replace(/\\/g, '/')}/.claude/agent-deck`
+}
+
+async function detectOs($: EngineInterface): Promise<Os> {
+  if ((await $.env.get('OS')) === 'Windows_NT') return 'windows'
+  return ((await $.env.get('HOME')) ?? '').startsWith('/Users/') ? 'mac' : 'linux'
+}
+
+/** Writes this session's entry into the window's data file, when it changed or is due a heartbeat. */
+async function publish($: EngineInterface, force = false) {
+  if (!windowOn) return
+  const [t, map, ty, hist, m, id, cwd] = await Promise.all([
+    $.clock.now(),
+    read($, agents),
+    read($, types),
+    read($, history),
+    read($, main),
+    $.session.id(),
+    $.session.cwd(),
+  ])
+  const name = cwd.split(/[\\/]/).filter(Boolean).pop() ?? 'session'
+  const entry = sessionEntry({ id, name, now: t, agents: Object.values(map), types: ty, main: m, history: hist })
+  const sig = signature(entry)
+  if (!force && sig === lastSignature && t - lastPublishedAt < HEARTBEAT_MS) return
+  await writeEntry($, id, entry, t)
+  lastSignature = sig
+  lastPublishedAt = t
+}
+
+async function writeEntry($: EngineInterface, id: string, entry: Parameters<typeof merge>[2], t: number) {
+  const file = `${await deckDir($)}/deck-data.js`
+  const existing = await $.fs.read(file).then(decode, () => ({}))
+  await $.fs.write(file, encode(merge(existing, id, entry, t)))
+}
+
+/** Copies the page out, starts feeding it and opens it as its own window. */
+async function popOut($: EngineInterface): Promise<{ isOpened: boolean; path: string }> {
+  const dir = await deckDir($)
+  const path = `${dir}/index.html`
+  await $.fs.write(path, await $.fs.read(`${$.plugin.root}/window/index.html`))
+  windowOn = true
+  await $.store.set(WINDOW_KEY, true)
+  await publish($, true)
+  const os = await detectOs($)
+  for (const argv of openCommands(os, path)) {
+    try {
+      const run = await $.process.run(argv, { timeoutMs: 20_000 })
+      // explorer.exe answers 1 even when it opened the file.
+      if (run.exitCode === 0 || argv[0] === 'explorer.exe') return { isOpened: true, path }
+    } catch {
+      // Try the next way.
+    }
+  }
+
+  return { isOpened: false, path }
+}
+
+async function popOutAndSay($: EngineInterface): Promise<string> {
+  const { isOpened, path } = await popOut($)
+  const shown = (await detectOs($)) === 'windows' ? path.replace(/\//g, '\\') : path
+  return isOpened
+    ? 'Agent deck window opened. Drag it to any screen and press F in it for fullscreen.'
+    : `Could not open a browser window. Open this file in Edge or Chrome: ${shown}`
 }
 
 // Timers end with the module, so a reload starts this afresh.
@@ -145,6 +222,11 @@ export const register: Register = on => {
     if (stored && typeof stored === 'object') {
       await update($, history, () => stored as Record<string, number[]>)
     }
+    await $.command.register({
+      name: 'agent-deck-window',
+      description: 'Pop the agent deck out into its own window (any screen, fullscreen); "off" stops feeding it',
+    })
+    windowOn = (await $.store.get(WINDOW_KEY)) === true
     const startAt = await $.clock.now()
     await update($, now, () => startAt)
     void $.ui.open({ id: PANE, title: TITLE })
@@ -158,6 +240,29 @@ export const register: Register = on => {
     await $.ui.open({ id: PANE, title: TITLE })
 
     return { text: 'Agent deck opened.' }
+  })
+
+  on('command.run', { command: 'agent-deck-window' }, async ($, e) => {
+    ensureTicking($)
+    if (e.args.trim().toLowerCase() === 'off') {
+      windowOn = false
+      await $.store.set(WINDOW_KEY, false)
+      const [id, t] = await Promise.all([$.session.id(), $.clock.now()])
+      await writeEntry($, id, undefined, t).catch(() => undefined)
+      return { text: 'Agent deck window: this session and new ones stop feeding it. /agent-deck-window turns it back on.' }
+    }
+
+    return { text: await popOutAndSay($) }
+  })
+
+  on('session.end', async ($, e, next) => {
+    try {
+      if (windowOn && e.reason !== 'clear') await writeEntry($, e.sessionId, undefined, await $.clock.now())
+    } catch {
+      // The window drops a quiet session by itself within a minute.
+    }
+
+    return next(e)
   })
 
   // Agent types the model can start: the deck's "ready" rim.
@@ -327,6 +432,12 @@ export const register: Register = on => {
         <Box flexDirection="row" gap={1} marginTop={1}>
           <Button key="left" label="◀ Turn" onPress={() => void update($, yaw, y => (y + 330) % 360)} />
           <Button key="right" label="Turn ▶" onPress={() => void update($, yaw, y => (y + 30) % 360)} />
+          <Button
+            key="popout"
+            label="Pop out ⧉"
+            variant="primary"
+            onPress={() => void popOutAndSay($).then(text => $.ui.toast(text, { timeoutMs: 8000 }))}
+          />
           {finished.length > 0 && (
             <Button
               key="clear"

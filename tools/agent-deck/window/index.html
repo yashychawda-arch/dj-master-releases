@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Deck</title>
+<style>
+  :root {
+    --bg: #05070f;
+    --panel: rgba(9, 14, 30, 0.8);
+    --line: rgba(120, 150, 230, 0.16);
+    --text: #e6ecff;
+    --dim: #8f9cc4;
+    --cyan: #37d7ff;
+    --green: #3ddc84;
+    --red: #ff5c7a;
+    --grey: #9aa4b2;
+    --amber: #f5b14c;
+    --violet: #b48cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #stage, #labels { position: fixed; inset: 0; }
+  #labels { pointer-events: none; }
+  .hud { position: fixed; top: 18px; left: 24px; pointer-events: none; z-index: 2; }
+  .hud h1 { margin: 0; font-size: 19px; letter-spacing: 0.22em; font-weight: 700; }
+  .hud .sub { color: var(--dim); margin-top: 4px; font-size: 14px; }
+  .bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 3; }
+  .bar button { background: rgba(20, 30, 60, 0.75); color: var(--text); border: 1px solid var(--line); border-radius: 9px;
+    padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .bar button:hover { border-color: rgba(120, 150, 230, 0.55); }
+  .bar button kbd { color: var(--dim); font: inherit; margin-left: 6px; }
+  #panel { position: fixed; top: 62px; right: 16px; bottom: 44px; width: min(430px, 36vw); overflow: auto; z-index: 2;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(10px); }
+  body.nopanel #panel { display: none; }
+  .sess + .sess { margin-top: 22px; }
+  .sess h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 600;
+    display: flex; justify-content: space-between; gap: 8px; }
+  .sess h2 .main { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .sess h2 .main.on { color: var(--violet); }
+  .group { margin: 10px 0 2px; font-size: 12px; color: var(--dim); }
+  .ag { padding: 9px 0 8px; border-top: 1px solid var(--line); }
+  .ag .t { font-weight: 600; display: flex; gap: 7px; align-items: baseline; }
+  .ag .t .n { color: var(--cyan); font-variant-numeric: tabular-nums; }
+  .ag .t .ty { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .ag .now { margin-top: 2px; }
+  .ag .meta { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .ag.idle .t .n { color: var(--amber); }
+  .prog { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; margin-top: 7px; overflow: hidden; position: relative; }
+  .prog i { position: absolute; inset: 0 auto 0 0; background: var(--cyan); border-radius: 2px; transition: width 0.8s ease; }
+  .prog.unknown i { width: 28%; animation: slide 1.8s ease-in-out infinite; }
+  @keyframes slide { 0% { left: -28%; } 100% { left: 100%; } }
+  .fin { display: flex; gap: 8px; font-size: 13px; color: var(--dim); padding: 3px 0; }
+  .fin .m { width: 1em; text-align: center; }
+  .fin.done .m { color: var(--green); } .fin.failed .m { color: var(--red); } .fin.stopped .m { color: var(--grey); }
+  .types { color: var(--dim); font-size: 12.5px; }
+  .empty { color: var(--dim); }
+  #status { position: fixed; left: 24px; bottom: 16px; color: var(--dim); font-size: 12px; z-index: 2; }
+  #status.warn { color: var(--amber); }
+  #note { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); max-width: 520px; text-align: center; color: var(--dim);
+    font-size: 15px; z-index: 1; display: none; }
+
+  /* Labels that float over the 3D scene. */
+  .lbl { font-family: inherit; white-space: nowrap; text-align: center; text-shadow: 0 1px 3px #000, 0 0 10px #000; transform: translateY(-50%); }
+  .lbl.tower .n { font-size: 21px; font-weight: 700; color: var(--cyan); }
+  .lbl.tower.idle .n { color: var(--amber); }
+  .lbl.tower .d { font-size: 16px; font-weight: 600; color: #f0f8ff; }
+  .lbl.tower .a { font-size: 13px; color: #cfe6ff; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+  .lbl.tower .m { font-size: 12px; color: var(--dim); }
+  .lbl.hub { font-size: 14px; color: #c9b3ff; }
+  .lbl.hub.off { color: #9aa0bf; }
+  .lbl.small { font-size: 12px; color: #aab4d4; }
+  .lbl.fin.done { color: var(--green); } .lbl.fin.failed { color: var(--red); } .lbl.fin.stopped { color: var(--grey); }
+  .lbl.sname { font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #9fb4ff; font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .prog.unknown i { animation: none; left: 0; } }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels"></div>
+<div class="hud"><h1>AGENT DECK</h1><div class="sub" id="sub">Waiting for data…</div></div>
+<div class="bar">
+  <button id="bRotate" title="Turn the camera by itself">Auto-turn<kbd>R</kbd></button>
+  <button id="bPanel" title="Show or hide the list">List<kbd>L</kbd></button>
+  <button id="bFull" title="Fill the screen">Fullscreen<kbd>F</kbd></button>
+</div>
+<div id="panel"></div>
+<div id="note"></div>
+<div id="status">Connecting…</div>
+
+<script>
+// Data and the list. The Claude sessions write deck-data.js next to this page; it is read again every
+// second. Plain script, so the list keeps working even when the 3D part cannot load.
+(() => {
+  const STALE_MS = 45000
+  const state = { data: null, receivedAt: 0 }
+  window.__deck = state
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+  const fmt = ms => {
+    const s = Math.max(0, Math.round(ms / 1000))
+    if (s < 60) return `${s}s`
+    const m = Math.floor(s / 60)
+    if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`
+    return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
+  }
+  window.__deckFmt = fmt
+  window.__deckEsc = esc
+
+  function liveSessions() {
+    const all = Object.values(state.data?.sessions ?? {})
+    return all.filter(s => Date.now() - s.updatedAt < STALE_MS).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+  }
+  window.__deckSessions = liveSessions
+
+  function render() {
+    const sessions = liveSessions()
+    const now = Date.now()
+    let working = 0
+    let finished = 0
+    const html = sessions.map(s => {
+      const live = s.agents.filter(a => a.status === 'running' || a.status === 'idle')
+      const done = s.agents.filter(a => !(a.status === 'running' || a.status === 'idle'))
+      working += live.length
+      finished += done.length
+      const rows = live.map(a => {
+        const elapsed = a.startedAt ? `${fmt(now - a.startedAt)} so far` : 'running since before the deck loaded'
+        const known = typeof a.est?.fraction === 'number'
+        const bar = known
+          ? `<div class="prog"><i style="width:${Math.round(Math.min(1, a.est.fraction) * 100)}%"></i></div>`
+          : `<div class="prog unknown"><i></i></div>`
+        return `<div class="ag ${a.status}">
+          <div class="t"><span class="n">#${a.n}</span><span>${esc(a.description)}</span><span class="ty">${esc(a.type)}</span></div>
+          <div class="now">${a.status === 'idle' ? 'Waiting for a message' : esc(a.action || 'Starting up')}</div>
+          <div class="meta">${elapsed} · ${esc(a.est?.text ?? '')} · ${a.tools} tool calls</div>${bar}</div>`
+      }).join('')
+      const fins = done.map(a => {
+        const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
+        const took = a.startedAt && a.endedAt ? ` · ${fmt(a.endedAt - a.startedAt)}` : ''
+        return `<div class="fin ${a.status}"><span class="m">${mark}</span><span>${esc(a.description)}${took}</span></div>`
+      }).join('')
+      const main = s.main.isWorking ? `Working${s.main.action ? `: ${esc(s.main.action)}` : ''}` : 'Waiting for you'
+      return `<div class="sess">
+        <h2><span>${esc(s.name)}</span><span class="main ${s.main.isWorking ? 'on' : ''}">${main}</span></h2>
+        ${rows || '<div class="empty">No agents working.</div>'}
+        ${fins ? `<div class="group">Finished</div>${fins}` : ''}
+        <div class="group">Ready to start</div><div class="types">${s.types.map(esc).join(' · ') || 'Listed after the session’s first turn.'}</div>
+      </div>`
+    }).join('')
+
+    document.getElementById('panel').innerHTML =
+      html || '<div class="empty">No Claude session is sending to this window. In a session, press <b>Pop out</b> on the Agent deck pane or type <b>/agent-deck-window</b>.</div>'
+    document.getElementById('sub').textContent =
+      `${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${working} working · ${finished} finished`
+
+    const age = now - state.receivedAt
+    const status = document.getElementById('status')
+    status.className = state.receivedAt && age < 5000 ? '' : 'warn'
+    status.textContent = !state.receivedAt
+      ? 'No data yet: open it from a Claude session (Pop out, or /agent-deck-window).'
+      : age < 5000 ? `Live · ${new Date().toLocaleTimeString()}` : `No update for ${fmt(age)}. Is a session still open?`
+
+    window.__deckScene?.update(sessions)
+  }
+
+  window.__deckData = d => {
+    state.data = d
+    state.receivedAt = Date.now()
+  }
+
+  function poll() {
+    const s = document.createElement('script')
+    s.src = `deck-data.js?t=${Date.now()}`
+    s.onload = s.onerror = () => s.remove()
+    document.head.appendChild(s)
+  }
+  poll()
+  setInterval(() => { poll(); render() }, 1000)
+  render()
+
+  const toggleFull = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+  const togglePanel = () => { document.body.classList.toggle('nopanel'); window.__deckScene?.resize() }
+  const toggleRotate = () => window.__deckScene?.toggleRotate()
+  document.getElementById('bFull').onclick = toggleFull
+  document.getElementById('bPanel').onclick = togglePanel
+  document.getElementById('bRotate').onclick = toggleRotate
+  addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    const k = e.key.toLowerCase()
+    if (k === 'f') toggleFull()
+    else if (k === 'l') togglePanel()
+    else if (k === 'r') toggleRotate()
+  })
+
+  setTimeout(() => {
+    if (window.__deckScene) return
+    const note = document.getElementById('note')
+    note.style.display = 'block'
+    note.textContent = 'The 3D view could not load (it fetches three.js from the internet the first time). The list on the right still updates.'
+  }, 8000)
+})()
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+
+const fmt = window.__deckFmt
+const esc = window.__deckEsc
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+const COLOR = {
+  running: 0x37d7ff, idle: 0xf5b14c, done: 0x3ddc84, failed: 0xff5c7a, stopped: 0x9aa4b2,
+  type: 0x7b86a6, main: 0xb48cff, mainOff: 0x5d6280, rim: 0x3a7bff,
+}
+const STAGE = 7.4
+const TOWER = 3.1
+const SPACING = 17.5
+
+// --- Renderer, camera, light ------------------------------------------------
+const stage = document.getElementById('stage')
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = 1.05
+stage.appendChild(renderer.domElement)
+
+const labels = new CSS2DRenderer({ element: document.getElementById('labels') })
+
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x05070f)
+scene.fog = new THREE.FogExp2(0x05070f, 0.012)
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600)
+camera.position.set(17, 14, 20)
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+controls.autoRotate = !calm
+controls.autoRotateSpeed = 0.45
+controls.maxPolarAngle = Math.PI * 0.47
+controls.minDistance = 6
+controls.maxDistance = 160
+let resumeTimer = 0
+let rotateWanted = controls.autoRotate
+controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(resumeTimer) })
+controls.addEventListener('end', () => { resumeTimer = setTimeout(() => { controls.autoRotate = rotateWanted }, 8000) })
+
+scene.add(new THREE.HemisphereLight(0x9bb8ff, 0x0a0c18, 0.7))
+const sun = new THREE.DirectionalLight(0xffffff, 1.3)
+sun.position.set(-10, 18, 8)
+scene.add(sun)
+
+const grid = new THREE.GridHelper(600, 300, 0x1a2550, 0x0d1430)
+grid.material.transparent = true
+grid.material.opacity = 0.35
+grid.position.y = -0.52
+scene.add(grid)
+
+const composer = new EffectComposer(renderer)
+composer.addPass(new RenderPass(scene, camera))
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.5, 0.22)
+composer.addPass(bloom)
+composer.addPass(new OutputPass())
+
+// --- Shared pieces ----------------------------------------------------------
+const boxGeo = new THREE.BoxGeometry(1, 1, 1)
+const fillGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
+const edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0))
+const arcGeo = new THREE.RingGeometry(0.98, 1.1, 48, 1, 0, Math.PI * 1.5).rotateX(-Math.PI / 2)
+
+function label(html, cls) {
+  const el = document.createElement('div')
+  el.className = `lbl ${cls}`
+  el.innerHTML = html
+  return new CSS2DObject(el)
+}
+
+function dropLabels(obj) {
+  obj.traverse(o => { if (o.isCSS2DObject) o.element.remove() })
+}
+
+function disposeTree(obj) {
+  dropLabels(obj)
+  obj.traverse(o => {
+    if (o.material && !o.userData.sharedMaterial) o.material.dispose()
+  })
+}
+
+function ringPositions(count, radius, offset) {
+  if (count === 1 && radius < 4) return [[0, radius]]
+  return Array.from({ length: count }, (_, i) => {
+    const a = offset + (i / count) * Math.PI * 2
+    return [Math.cos(a) * radius, Math.sin(a) * radius]
+  })
+}
+
+const easeTo = (cur, target, dt, rate = 4) => cur + (target - cur) * (1 - Math.exp(-rate * dt))
+
+// --- One agent's tower ------------------------------------------------------
+class Tower {
+  constructor() {
+    this.group = new THREE.Group()
+    this.color = new THREE.Color(COLOR.running)
+
+    const base = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: 0x1b2747, roughness: 0.6, metalness: 0.3 }))
+    base.scale.set(1.3, 0.14, 1.3)
+    base.position.y = 0.07
+    this.group.add(base)
+
+    this.fillMat = new THREE.MeshStandardMaterial({ color: COLOR.running, emissive: COLOR.running, emissiveIntensity: 0.9,
+      roughness: 0.35, metalness: 0.1, transparent: true, opacity: 0.95 })
+    this.fill = new THREE.Mesh(fillGeo, this.fillMat)
+    this.fill.scale.set(0.82, 0.01, 0.82)
+    this.fill.position.y = 0.14
+    this.group.add(this.fill)
+
+    const glass = new THREE.Mesh(fillGeo, new THREE.MeshStandardMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.08,
+      roughness: 0.1, metalness: 0.2, depthWrite: false }))
+    glass.scale.set(1.04, TOWER, 1.04)
+    glass.position.y = 0.14
+    this.group.add(glass)
+    this.edgeMat = new THREE.LineBasicMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0.55 })
+    const edges = new THREE.LineSegments(edgesGeo, this.edgeMat)
+    edges.scale.copy(glass.scale)
+    edges.position.y = 0.14
+    this.group.add(edges)
+
+    this.arcMat = new THREE.MeshBasicMaterial({ color: COLOR.running, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
+    this.arc = new THREE.Mesh(arcGeo, this.arcMat)
+    this.arc.position.y = 0.02
+    this.group.add(this.arc)
+
+    this.beamMat = new THREE.MeshBasicMaterial({ color: COLOR.running, transparent: true, opacity: 0.4 })
+    this.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 8), this.beamMat)
+    this.beam.position.y = TOWER + 0.14 + 0.7
+    this.group.add(this.beam)
+
+    this.tag = label('', 'tower')
+    this.tag.position.y = TOWER + 1.7
+    this.group.add(this.tag)
+
+    this.height = 0.01
+    this.target = 0.01
+    this.known = true
+    this.phase = Math.random() * Math.PI * 2
+    this.group.scale.setScalar(0.01)
+  }
+
+  update(a, now) {
+    const idle = a.status === 'idle'
+    this.color.setHex(idle ? COLOR.idle : COLOR.running)
+    for (const m of [this.fillMat, this.arcMat, this.beamMat]) m.color.copy(this.color)
+    this.fillMat.emissive.copy(this.color)
+    this.known = typeof a.est?.fraction === 'number'
+    this.target = this.known ? Math.max(0.06, Math.min(1, a.est.fraction)) * TOWER * 0.94 : TOWER * 0.94
+    const pct = this.known ? ` · ${Math.round(Math.min(1, a.est.fraction) * 100)}%` : ''
+    const elapsed = a.startedAt ? fmt(now - a.startedAt) : 'since before the deck loaded'
+    this.tag.element.className = `lbl tower${idle ? ' idle' : ''}`
+    this.tag.element.innerHTML =
+      `<div class="n">#${a.n}${pct}</div><div class="d">${esc(a.description)}</div>` +
+      `<div class="a">${idle ? 'Waiting for a message' : esc(a.action || 'Starting up')}</div>` +
+      `<div class="m">${elapsed} · ${esc(a.est?.text ?? '')}</div>`
+  }
+
+  tick(dt, t) {
+    this.group.scale.setScalar(easeTo(this.group.scale.x, 1, dt, 5))
+    this.height = easeTo(this.height, this.target, dt, 2.5)
+    this.fill.scale.y = this.height
+    const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 3.2 + this.phase)
+    this.fillMat.opacity = this.known ? 0.95 : 0.35 + 0.45 * pulse
+    this.fillMat.emissiveIntensity = this.known ? 0.9 : 0.4 + 0.9 * pulse
+    if (!calm) this.arc.rotation.y -= dt * 1.6
+    this.beamMat.opacity = 0.15 + 0.45 * pulse
+  }
+}
+
+// --- A small block: a finished agent, or an agent type ready to start -------
+function block(color, w, h, opacity = 0.9) {
+  const m = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.18,
+    roughness: 0.5, metalness: 0.15, transparent: true, opacity }))
+  m.scale.set(w, h, w)
+  m.position.y = h / 2
+  return m
+}
+
+// --- One session: its stage, main hub, towers, finished blocks, types --------
+class SessionView {
+  constructor(id) {
+    this.id = id
+    this.group = new THREE.Group()
+    scene.add(this.group)
+
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(STAGE, STAGE + 0.15, 0.5, 96),
+      new THREE.MeshStandardMaterial({ color: 0x0c1530, roughness: 0.75, metalness: 0.35 }))
+    disc.position.y = -0.25
+    this.group.add(disc)
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(STAGE + 0.02, 0.05, 8, 200).rotateX(Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: COLOR.rim }))
+    rim.position.y = 0.01
+    this.group.add(rim)
+    for (const r of [2.4, 4.8]) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.02, r + 0.02, 128).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: COLOR.rim, transparent: true, opacity: 0.25 }))
+      ring.position.y = 0.012
+      this.group.add(ring)
+    }
+
+    this.hubMat = new THREE.MeshStandardMaterial({ color: COLOR.mainOff, emissive: COLOR.main, emissiveIntensity: 0,
+      roughness: 0.4, metalness: 0.2 })
+    const hubBase = new THREE.Mesh(boxGeo, this.hubMat)
+    hubBase.scale.set(1.6, 0.55, 1.6)
+    hubBase.position.y = 0.275
+    const hubTop = new THREE.Mesh(boxGeo, this.hubMat)
+    hubTop.scale.set(1.0, 0.5, 1.0)
+    hubTop.position.y = 0.8
+    hubBase.userData.sharedMaterial = hubTop.userData.sharedMaterial = true
+    this.group.add(hubBase, hubTop)
+    this.hubTag = label('', 'hub')
+    this.hubTag.position.y = 1.75
+    this.group.add(this.hubTag)
+
+    this.nameTag = label('', 'sname')
+    this.nameTag.position.set(0, 0.2, STAGE + 1.1)
+    this.group.add(this.nameTag)
+
+    this.towers = new Map()
+    this.blocks = new Map()
+    this.pedestals = new Map()
+    this.working = false
+    this.target = new THREE.Vector3()
+  }
+
+  update(s, now) {
+    this.working = s.main.isWorking
+    this.hubMat.color.setHex(this.working ? COLOR.main : COLOR.mainOff)
+    this.hubTag.element.className = `lbl hub${this.working ? '' : ' off'}`
+    this.hubTag.element.textContent = this.working ? `Main session · ${s.main.action || 'working'}` : 'Main session · waiting for you'
+    this.nameTag.element.textContent = s.name
+
+    const live = s.agents.filter(a => a.status === 'running' || a.status === 'idle')
+    const done = s.agents.filter(a => !(a.status === 'running' || a.status === 'idle'))
+
+    sync(this.towers, live, () => new Tower(), this.group)
+    const tp = ringPositions(live.length, live.length === 1 ? 3.0 : 3.1, -Math.PI / 2)
+    live.forEach((a, i) => {
+      const tower = this.towers.get(a.id)
+      tower.update(a, now)
+      tower.group.userData.goal = tp[i]
+    })
+
+    sync(this.blocks, done, a => {
+      const g = new THREE.Group()
+      g.add(block(COLOR[a.status] ?? COLOR.stopped, 0.8, 0.6, 0.85))
+      const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
+      const tag = label(`${mark} ${esc(a.description)}`, `small fin ${a.status}`)
+      tag.position.y = 1.05
+      g.add(tag)
+      return { group: g, tick() {} }
+    }, this.group)
+    const bp = ringPositions(done.length, 5.3, Math.PI / 2 + 0.35)
+    done.forEach((a, i) => { this.blocks.get(a.id).group.userData.goal = bp[i] })
+
+    const types = s.types.slice(0, 14).map(name => ({ id: name, name }))
+    sync(this.pedestals, types, t => {
+      const g = new THREE.Group()
+      g.add(block(COLOR.type, 0.62, 0.32))
+      const tag = label(esc(t.name), 'small')
+      tag.position.y = 0.75
+      g.add(tag)
+      return { group: g, tick() {} }
+    }, this.group)
+    const pp = ringPositions(types.length, 6.6, -Math.PI / 2 + Math.PI / Math.max(1, types.length))
+    types.forEach((t, i) => { this.pedestals.get(t.id).group.userData.goal = pp[i] })
+  }
+
+  tick(dt, t) {
+    this.group.position.lerp(this.target, 1 - Math.exp(-3 * dt))
+    this.hubMat.emissiveIntensity = this.working ? (calm ? 0.6 : 0.45 + 0.35 * Math.sin(t * 2.4)) : 0
+    for (const map of [this.towers, this.blocks, this.pedestals]) {
+      for (const item of map.values()) {
+        const goal = item.group.userData.goal
+        if (goal) {
+          item.group.position.x = easeTo(item.group.position.x, goal[0], dt, 3)
+          item.group.position.z = easeTo(item.group.position.z, goal[1], dt, 3)
+        }
+        item.tick(dt, t)
+      }
+    }
+  }
+
+  dispose() {
+    for (const map of [this.towers, this.blocks, this.pedestals]) for (const item of map.values()) disposeTree(item.group)
+    disposeTree(this.group)
+    scene.remove(this.group)
+  }
+}
+
+/** Adds what is new, removes what is gone; items are keyed by `id`. */
+function sync(map, list, make, parent) {
+  const ids = new Set(list.map(x => x.id))
+  for (const [id, item] of map) {
+    if (!ids.has(id)) {
+      disposeTree(item.group)
+      parent.remove(item.group)
+      map.delete(id)
+    }
+  }
+  for (const x of list) {
+    if (map.has(x.id)) continue
+    // New items start at the middle and glide out to their place.
+    const item = make(x)
+    parent.add(item.group)
+    map.set(x.id, item)
+  }
+}
+
+// --- The deck: one stage per session, laid round a circle ---------------------
+const views = new Map()
+let span = 0
+
+function layout(count) {
+  if (count <= 1) return [[0, 0]]
+  const r = SPACING / (2 * Math.sin(Math.PI / count))
+  return Array.from({ length: count }, (_, i) => {
+    const a = -Math.PI / 2 + (i / count) * Math.PI * 2
+    return [Math.cos(a) * r, Math.sin(a) * r]
+  })
+}
+
+function update(sessions) {
+  const now = Date.now()
+  const ids = new Set(sessions.map(s => s.id))
+  for (const [id, view] of views) {
+    if (!ids.has(id)) { view.dispose(); views.delete(id) }
+  }
+  const spots = layout(sessions.length)
+  sessions.forEach((s, i) => {
+    let view = views.get(s.id)
+    if (!view) {
+      view = new SessionView(s.id)
+      view.group.position.set(spots[i][0], 0, spots[i][1])
+      views.set(s.id, view)
+    }
+    view.target.set(spots[i][0], 0, spots[i][1])
+    view.update(s, now)
+  })
+  span = sessions.length <= 1 ? 0 : SPACING / (2 * Math.sin(Math.PI / sessions.length))
+}
+
+// --- Frame loop and sizing --------------------------------------------------
+function resize() {
+  const w = innerWidth
+  const h = innerHeight
+  renderer.setSize(w, h)
+  composer.setSize(w, h)
+  bloom.setSize(w, h)
+  labels.setSize(w, h)
+  camera.aspect = w / h
+  // Keep the scene centred in the room the list leaves.
+  const panel = document.body.classList.contains('nopanel') ? 0 : document.getElementById('panel').offsetWidth + 16
+  if (panel) camera.setViewOffset(w, h, panel / 2, 0, w, h)
+  else camera.clearViewOffset()
+  camera.updateProjectionMatrix()
+}
+addEventListener('resize', resize)
+resize()
+
+const clock = new THREE.Clock()
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.1)
+  const t = clock.elapsedTime
+  // Pull the camera out as sessions are added, so every stage stays in view.
+  const roomy = document.body.classList.contains('nopanel') ? 1 : 1.22
+  const want = (28 + span * 1.6) * roomy
+  const dist = camera.position.distanceTo(controls.target)
+  if (Math.abs(dist - want) > 0.5 && !controls.userData?.zoomed) {
+    camera.position.sub(controls.target).setLength(easeTo(dist, want, dt, 1.5)).add(controls.target)
+  }
+  for (const view of views.values()) view.tick(dt, t)
+  controls.update()
+  composer.render()
+  labels.render(scene, camera)
+  requestAnimationFrame(frame)
+}
+controls.userData = { zoomed: false }
+renderer.domElement.addEventListener('wheel', () => { controls.userData.zoomed = true }, { passive: true })
+requestAnimationFrame(frame)
+
+window.__deckScene = {
+  update,
+  resize,
+  toggleRotate() {
+    rotateWanted = !rotateWanted
+    controls.autoRotate = rotateWanted
+  },
+}
+update(window.__deckSessions())
+</script>
+</body>
+</html>

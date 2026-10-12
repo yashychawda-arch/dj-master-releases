@@ -12,6 +12,20 @@ A live 3D pane inside Claude Code that shows, for the session it runs in:
 
 `◀ Turn` / `Turn ▶` rotate the camera. `/agent-deck` reopens the pane if you close it.
 
+## Pop it out into its own window
+
+Press **Pop out ⧉** in the pane, or type `/agent-deck-window`. The deck opens as its own window (an Edge or
+Chrome app window, falling back to your default browser), so you can drag it to another screen and press
+**F** to fill it. This window is full 3D: one round stage per open Claude session, glowing towers for working
+agents, a camera that turns by itself (drag to turn it yourself, scroll to zoom), and the list down the side.
+
+- `F` fullscreen · `L` show or hide the list · `R` camera turning on or off
+- Every session with the deck feeds the same window, so it shows all of them at once. A session drops off
+  about a minute after it closes.
+- The 3D part loads three.js from the internet when the window opens; offline, the list still updates.
+- The window reads a small file the sessions write every couple of seconds:
+  `~/.claude/agent-deck/deck-data.js`. `/agent-deck-window off` stops the sessions writing it.
+
 ## About "time left"
 
 Claude does not report progress or a finish time, so the deck estimates, and says how:
@@ -42,6 +56,8 @@ irm https://claude.ai/install.ps1 | iex
 
 New sessions open the deck by themselves. In a session that is already running, type `/reload-plugins`
 and then `/agent-deck`.
+
+To update later: `git -C "$HOME\agent-deck-src" pull`, then `/reload-plugins` in a session.
 
 It sees the agents of the session it is loaded in. Agents a session started before the deck loaded
 appear too, with no start time.
