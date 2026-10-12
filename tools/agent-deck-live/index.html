@@ -1,0 +1,1105 @@
+<title>Agent Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen instrument panel. Header bar, the live stage (Orbit, Board or Lanes) on the left, a detail rail on the right. */
+:root {
+  --bg: #0c0f13;
+  --panel: #12161c;
+  --raise: #191e26;
+  --line: #242b35;
+  --fg: #e7ecf2;
+  --dim: #8d99a7;
+  --faint: #5b6674;
+  --accent: #8fb3ff;
+  --work: #3dd6c3;
+  --wait: #f4b54a;
+  --done: #7ccf8c;
+  --fail: #f07262;
+  --idle: #6f7d8e;
+  --display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --body: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #edf0f4; --panel: #ffffff; --raise: #f4f6f9; --line: #d8dee6; --fg: #121820; --dim: #556170; --faint: #8994a2;
+    --accent: #2d5bd7; --work: #0a9886; --wait: #b4760a; --done: #2d8a45; --fail: #c7422e; --idle: #7b8898;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #edf0f4; --panel: #ffffff; --raise: #f4f6f9; --line: #d8dee6; --fg: #121820; --dim: #556170; --faint: #8994a2;
+  --accent: #2d5bd7; --work: #0a9886; --wait: #b4760a; --done: #2d8a45; --fail: #c7422e; --idle: #7b8898;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0c0f13; --panel: #12161c; --raise: #191e26; --line: #242b35; --fg: #e7ecf2; --dim: #8d99a7; --faint: #5b6674;
+  --accent: #8fb3ff; --work: #3dd6c3; --wait: #f4b54a; --done: #7ccf8c; --fail: #f07262; --idle: #6f7d8e;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; padding-inline: 16px; padding-block: 14px; }
+
+/* Header */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 1.05rem; letter-spacing: .2em; text-transform: uppercase; }
+.brand p { margin: 2px 0 0; color: var(--dim); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.brand .stale { color: var(--wait); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button, .btn { border: 0; background: transparent; color: var(--dim); padding: 7px 12px; font-size: .8rem; font-weight: 500; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover, .btn:hover { color: var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--raise); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.btn { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.k { font-family: var(--mono); font-size: .68rem; color: var(--faint); }
+
+/* Notice */
+.notice { grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .86rem; }
+.notice .dot { flex: none; }
+.notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
+.notice button { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
+
+/* Stage + rail */
+.main { grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; min-height: 0; }
+.stage { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--accent) 7%, var(--panel)) 0%, var(--panel) 62%); }
+#orbit { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+.pane { position: absolute; inset: 0; overflow: auto; padding: 16px; }
+.rail { min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 64vh; min-height: 420px; }
+}
+
+/* Shared bits */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; flex: none; }
+.shape { width: 10px; height: 10px; background: currentColor; display: inline-block; flex: none; }
+.shape.cloud { border-radius: 50%; }
+.shape.local { border-radius: 2px; }
+.shape.hollow { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.t-work { color: var(--work); } .t-wait { color: var(--wait); } .t-fail { color: var(--fail); } .t-done { color: var(--done); } .t-idle { color: var(--idle); }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.tag { font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: .74rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.eyebrow { margin: 0; font-family: var(--display); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.empty { color: var(--faint); font-size: .86rem; margin: 0; }
+
+/* Board */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; align-items: start; }
+.col { display: grid; gap: 10px; min-width: 0; }
+.col-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.col-head .mono { margin-left: auto; }
+.card { width: 100%; text-align: left; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 7px; cursor: pointer; min-width: 0; }
+.card:hover { border-color: var(--faint); }
+.card.sel { border-color: var(--accent); }
+.card-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-top .mono { margin-left: auto; }
+.card-title { font-weight: 600; font-size: .95rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line { font-size: .84rem; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line.needs { color: var(--wait); }
+.agents { display: grid; gap: 5px; margin: 0; padding: 8px 0 0; list-style: none; border-top: 1px dashed var(--line); }
+.agents li { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: .8rem; }
+.agents li .dot { transform: translateY(-1px); }
+.agents .what { color: var(--dim); }
+
+/* Lanes */
+.lanes { display: grid; min-width: 0; }
+.lanes-head, .lane { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; align-items: center; }
+.lanes-head { position: sticky; top: -16px; background: var(--panel); padding: 0 0 8px; z-index: 1; }
+.axis { position: relative; height: 16px; }
+.axis span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--mono); font-size: .66rem; color: var(--faint); white-space: nowrap; }
+.axis span:last-child { transform: translateX(-100%); }
+.axis span:first-child { transform: none; }
+.lane { width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 10px 0; cursor: pointer; }
+.lane:hover .lane-name { text-decoration: underline; text-decoration-color: var(--faint); }
+.lane.sel .lane-name { color: var(--accent); }
+.lane-label { display: grid; gap: 3px; min-width: 0; }
+.lane-name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.track { position: relative; height: 54px; border-radius: 6px; background-color: var(--raise);
+  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: 25% 100%; }
+.tick { position: absolute; top: 6px; width: 2px; height: 10px; border-radius: 1px; background: var(--faint); }
+.tick.hot { background: var(--work); }
+.bar { position: absolute; height: 13px; border-radius: 3px; font-family: var(--mono); font-size: .62rem; line-height: 13px; padding: 0 5px; box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--fg); }
+.bar.run { background: color-mix(in srgb, var(--work) 30%, transparent); box-shadow: inset 0 0 0 1px var(--work); }
+.bar.end { background: color-mix(in srgb, var(--done) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--done) 60%, transparent); color: var(--dim); }
+.bar.bad { background: color-mix(in srgb, var(--fail) 20%, transparent); box-shadow: inset 0 0 0 1px var(--fail); }
+.mark { position: absolute; top: 4px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg); background: var(--dim); }
+.nowcap { position: absolute; right: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 6px 6px 0; background: var(--work); }
+.track .when { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+@media (max-width: 640px) {
+  .lanes-head, .lane { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .lanes-head .spacer { display: none; }
+}
+
+/* Rail */
+.rail section { display: grid; gap: 10px; }
+.row { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 7px 8px; margin: 0 -8px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; cursor: pointer; }
+.row:hover { background: var(--raise); }
+.row .sub { grid-column: 2 / 4; font-size: .8rem; color: var(--wait); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 600; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line); }
+.detail-title { margin: 0; font-size: 1.15rem; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+dl { margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 7px 12px; font-size: .86rem; }
+dt { color: var(--faint); }
+dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+dd.needs { color: var(--wait); }
+.open { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; text-decoration: none; font-weight: 600; font-size: .86rem; }
+.open:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; font-size: .8rem; color: var(--dim); margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.keys { font-size: .78rem; color: var(--faint); margin: 0; }
+.keys .k { color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Agent Deck</h1>
+      <p id="summary">Connecting to your sessions…</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="views" role="group" aria-label="Layout">
+        <button id="view-orbit" data-view="orbit" aria-pressed="true">Orbit <span class="k">1</span></button>
+        <button id="view-board" data-view="board" aria-pressed="false">Board <span class="k">2</span></button>
+        <button id="view-lanes" data-view="lanes" aria-pressed="false">Lanes <span class="k">3</span></button>
+      </div>
+      <div class="seg" id="ranges" role="group" aria-label="Time range">
+        <button id="range-day" data-range="day" aria-pressed="true">Today</button>
+        <button id="range-week" data-range="week" aria-pressed="false">This week</button>
+      </div>
+      <button class="btn" id="refresh" title="Refresh now (R)">Refresh</button>
+      <button class="btn" id="full" title="Fullscreen (F)">Fullscreen</button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="main">
+    <section class="stage" id="stage" aria-label="Sessions">
+      <canvas id="orbit" aria-label="Orbit view of your sessions"></canvas>
+      <div class="pane" id="board" hidden></div>
+      <div class="pane" id="lanes" hidden></div>
+    </section>
+    <aside class="rail" id="rail" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict'
+
+  const SERVER = 'Claude Code Remote'
+  const VIEWS = ['orbit', 'board', 'lanes']
+  const RANGE_MS = { day: 24 * 3600e3, week: 7 * 24 * 3600e3 }
+  const LANE_MS = 60 * 60e3
+  const AGENT_QUIET_MS = 180e3
+  const MAX_EVENT_WATCHES = 12
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k) } catch { return null } },
+    set(k, v) { try { localStorage.setItem(k, v) } catch { /* per-viewer convenience only */ } },
+  }
+
+  const S = {
+    mode: 'connecting', // connecting | live | demo | blocked
+    sessions: new Map(),
+    agents: new Map(),   // session id -> Map(agent id -> agent)
+    main: new Map(),     // session id -> { action, at }
+    activity: new Map(), // session id -> Map(event id -> time)
+    taskToTool: new Map(),
+    view: VIEWS.includes(store.get('deck.view')) ? store.get('deck.view') : 'orbit',
+    range: store.get('deck.range') === 'week' ? 'week' : 'day',
+    selected: null,
+    updatedAt: 0,
+    stale: false,
+    notice: null,
+    agentNote: '',
+  }
+
+  let mcp = null
+  let unwatchSessions = null
+  const eventWatches = new Map()
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+  // ---------- small helpers ----------
+  const $ = id => document.getElementById(id)
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag)
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue
+      if (k === 'class') el.className = v
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v)
+      else el.setAttribute(k, v === true ? '' : String(v))
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid === undefined || kid === null || kid === false) continue
+      el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)))
+    }
+    return el
+  }
+  const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+  const base = p => String(p || '').split(/[\\/]/).filter(Boolean).pop() || ''
+  function ago(t, now = Date.now()) {
+    if (!t) return '—'
+    const s = Math.max(0, Math.round((now - t) / 1000))
+    if (s < 10) return 'just now'
+    if (s < 60) return s + 's ago'
+    const m = Math.round(s / 60)
+    if (m < 60) return m + 'm ago'
+    const hr = Math.round(m / 60)
+    if (hr < 48) return hr + 'h ago'
+    return Math.round(hr / 24) + 'd ago'
+  }
+  const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's')
+  function span(ms) {
+    const m = Math.max(0, Math.round(ms / 60e3))
+    if (m < 1) return 'under a minute'
+    if (m < 60) return m + 'm'
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'
+  }
+
+  // ---------- reading the connector ----------
+  function unwrap(result) {
+    let p = result && typeof result === 'object' && 'payload' in result ? result.payload : result
+    if (typeof p === 'string') {
+      const i = p.indexOf('{"ccr"')
+      const j = p.lastIndexOf('}')
+      const text = i >= 0 && j > i ? p.slice(i, j + 1) : p
+      try { p = JSON.parse(text) } catch { p = null }
+    }
+    if (!p && result && Array.isArray(result.content)) {
+      const t = result.content.find(b => b && b.type === 'text')
+      if (t && typeof t.text === 'string') return unwrap({ payload: t.text })
+    }
+    const ccr = p && p.ccr ? p.ccr : p
+    return { data: ccr && Array.isArray(ccr.data) ? ccr.data : [] }
+  }
+
+  const LABEL = { working: 'Working', blocked: 'Waiting for you', failed: 'Stopped with an error', review_ready: 'Ready to review', completed: 'Finished its turn', unknown: 'Idle' }
+  const tone = b => ({ working: 'work', blocked: 'wait', failed: 'fail', review_ready: 'done', completed: 'done' })[b] || 'idle'
+  const group = b => b === 'working' ? 'work' : (b === 'blocked' || b === 'failed') ? 'wait' : 'recent'
+  const repoName = u => String(u || '').replace(/\.git$/, '').split('/').filter(Boolean).pop() || ''
+
+  function normSession(r) {
+    const meta = r.external_metadata || {}
+    const ctx = r.session_context || {}
+    const pts = r.post_turn_summary || meta.post_turn_summary || {}
+    const sources = (ctx.sources || []).map(s => s && s.git_repository && s.git_repository.url).filter(Boolean)
+    const branches = meta.current_branches || {}
+    const branchKeys = Object.keys(branches)
+    let repo = sources[0] ? repoName(sources[0]) : ''
+    if (!repo) {
+      const key = Object.keys(meta.worktree_state || {})[0] || branchKeys.find(Boolean)
+      if (key) repo = repoName(key)
+    }
+    const kind = r.environment_kind || ''
+    const place = kind === 'bridge' ? 'local' : 'cloud'
+    return {
+      id: r.id,
+      title: r.title || 'Untitled session',
+      bucket: String(r.status_bucket || '').replace('SESSION_STATUS_BUCKET_', '').toLowerCase() || 'unknown',
+      archived: r.session_status === 'SESSION_STATUS_ARCHIVED',
+      place,
+      offline: place === 'local' && r.connection_status === 'disconnected',
+      repo,
+      branch: branchKeys.length ? String(branches[branchKeys[0]] || '') : '',
+      updatedAt: Date.parse(r.updated_at) || 0,
+      createdAt: Date.parse(r.created_at) || 0,
+      doing: r.task_summary || meta.task_summary || '',
+      needs: pts.needs_action || '',
+      detail: pts.status_detail || '',
+      recent: pts.recent_action || '',
+    }
+  }
+
+  function describe(b) {
+    const i = b.input || {}
+    const n = String(b.name || '')
+    switch (n) {
+      case 'Bash': return clip(i.description || i.command || 'Running a command', 80)
+      case 'Read': return 'Reading ' + base(i.file_path)
+      case 'Edit': case 'MultiEdit': return 'Editing ' + base(i.file_path)
+      case 'Write': return 'Writing ' + base(i.file_path)
+      case 'NotebookEdit': return 'Editing ' + base(i.notebook_path)
+      case 'Grep': return 'Searching for "' + clip(i.pattern, 40) + '"'
+      case 'Glob': return 'Finding files ' + clip(i.pattern, 40)
+      case 'WebSearch': return 'Searching the web: ' + clip(i.query, 50)
+      case 'WebFetch': try { return 'Reading ' + new URL(i.url).hostname } catch { return 'Reading a web page' }
+      case 'TodoWrite': case 'TaskCreate': case 'TaskUpdate': return 'Updating its task list'
+      case 'Agent': case 'Task': return 'Starting an agent: ' + clip(i.description, 50)
+      case 'Skill': return 'Using the ' + clip(i.skill, 30) + ' skill'
+      case 'AskUserQuestion': return 'Asking you a question'
+    }
+    if (n.startsWith('mcp__')) return 'Using ' + (n.split('__')[2] || n).replace(/_/g, ' ')
+    return n.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Working'
+  }
+
+  const blankAgent = id => ({ id, desc: '', type: '', startedAt: 0, lastAt: 0, action: '', actionAt: 0, tools: 0, final: null, endedAt: 0 })
+
+  function setMain(sid, action, at) {
+    const cur = S.main.get(sid)
+    if (!cur || at >= cur.at) S.main.set(sid, { action, at })
+  }
+
+  function ingestEvents(sid, list) {
+    const agents = S.agents.get(sid) || new Map()
+    S.agents.set(sid, agents)
+    const seen = S.activity.get(sid) || new Map()
+    S.activity.set(sid, seen)
+    for (const ev of list) {
+      if (!ev || typeof ev !== 'object') continue
+      const kind = Object.keys(ev).find(k => k !== 'created_at')
+      if (!kind) continue
+      const body = ev[kind] || {}
+      const c = body.internal_anthropic_catchall || body
+      const ts = Date.parse(c.timestamp || ev.created_at) || Date.now()
+      const key = body.uuid || c.uuid || (kind + ev.created_at)
+      if (seen.has(key)) continue
+      seen.set(key, ts)
+      if (kind === 'assistant') {
+        const blocks = c.message && Array.isArray(c.message.content) ? c.message.content : []
+        const parent = c.parent_tool_use_id || null
+        for (const b of blocks) {
+          if (!b || b.type !== 'tool_use') continue
+          const input = b.input || {}
+          if (!parent && (b.name === 'Agent' || b.name === 'Task')) {
+            const a = agents.get(b.id) || blankAgent(b.id)
+            a.desc = input.description || a.desc || 'Agent'
+            a.type = input.subagent_type || a.type || 'general-purpose'
+            a.startedAt = a.startedAt ? Math.min(a.startedAt, ts) : ts
+            a.lastAt = Math.max(a.lastAt, ts)
+            agents.set(b.id, a)
+            setMain(sid, describe(b), ts)
+          } else if (parent) {
+            const a = agents.get(parent) || blankAgent(parent)
+            a.startedAt = a.startedAt ? Math.min(a.startedAt, ts) : ts
+            a.lastAt = Math.max(a.lastAt, ts)
+            a.tools += 1
+            if (ts >= a.actionAt) { a.action = describe(b); a.actionAt = ts }
+            agents.set(parent, a)
+          } else {
+            setMain(sid, describe(b), ts)
+          }
+        }
+      } else if (kind === 'system') {
+        const sub = String(c.subtype || '')
+        if (/task/i.test(sub)) {
+          if (c.task_id && c.tool_use_id) S.taskToTool.set(c.task_id, c.tool_use_id)
+          const toolId = c.tool_use_id || S.taskToTool.get(c.task_id)
+          const a = toolId && agents.get(toolId)
+          const st = String(c.status || '').toLowerCase()
+          if (a && st) {
+            if (/complet|success|done/.test(st)) a.final = 'done'
+            else if (/fail|error/.test(st)) a.final = 'failed'
+            else if (/stop|kill|cancel/.test(st)) a.final = 'stopped'
+            if (a.final) a.endedAt = ts
+          }
+        }
+      }
+    }
+    const cutoff = Date.now() - 2 * LANE_MS
+    for (const [k, t] of seen) if (t < cutoff) seen.delete(k)
+  }
+
+  function agentStatus(sid, a, now) {
+    if (a.final) return a.final
+    const s = S.sessions.get(sid)
+    if (!s || s.bucket !== 'working') return 'done'
+    const last = Math.max(a.lastAt, a.startedAt)
+    const main = S.main.get(sid)
+    if (now - last < AGENT_QUIET_MS) return 'running'
+    if (!main || main.at <= last) return 'running'
+    return 'done'
+  }
+
+  function agentsOf(sid, now = Date.now()) {
+    const all = [...(S.agents.get(sid) || new Map()).values()].map(a => ({ ...a, status: agentStatus(sid, a, now) }))
+    const running = all.filter(a => a.status === 'running').sort((x, y) => x.startedAt - y.startedAt)
+    const finished = all.filter(a => a.status !== 'running').sort((x, y) => (y.endedAt || y.lastAt) - (x.endedAt || x.lastAt)).slice(0, 6)
+    return { running, finished }
+  }
+
+  function visible(now = Date.now()) {
+    const rank = { work: 0, wait: 1, recent: 2 }
+    return [...S.sessions.values()]
+      .filter(s => !s.archived && (s.bucket === 'working' || now - s.updatedAt <= RANGE_MS[S.range]))
+      .sort((a, b) => rank[group(a.bucket)] - rank[group(b.bucket)] || b.updatedAt - a.updatedAt)
+  }
+
+  // ---------- live data ----------
+  function applySessions(result) {
+    const { data } = unwrap(result)
+    const next = new Map()
+    for (const r of data) if (r && r.id) next.set(r.id, normSession(r))
+    S.sessions = next
+    S.mode = 'live'
+    S.stale = false
+    S.notice = null
+    S.updatedAt = (result && result.cache && result.cache.storedAt) || Date.now()
+    if (S.selected && !next.has(S.selected)) S.selected = null
+    syncEventWatches()
+    requestRender()
+  }
+
+  function syncEventWatches() {
+    if (!mcp) return
+    const want = new Set([...S.sessions.values()].filter(s => !s.archived && s.bucket === 'working').slice(0, MAX_EVENT_WATCHES).map(s => s.id))
+    for (const [sid, stop] of eventWatches) if (!want.has(sid)) { stop(); eventWatches.delete(sid) }
+    for (const sid of want) {
+      if (eventWatches.has(sid)) continue
+      const stop = mcp.watchTool(SERVER, 'list_events', { session_id: sid, kinds: ['assistant', 'system'], limit: 60 }, ev => {
+        if (ev.type === 'data') { ingestEvents(sid, unwrap(ev.result).data); S.agentNote = ''; requestRender() }
+        else if (ev.error && ['approval_required', 'not_in_manifest', 'consent_required'].includes(ev.error.code)) {
+          S.agentNote = 'Agent activity needs your OK to read session history.'
+          requestRender()
+        }
+      }, { refetchInterval: 30000 })
+      eventWatches.set(sid, stop)
+    }
+  }
+
+  function watchSessions() {
+    if (unwatchSessions) return
+    unwatchSessions = mcp.watchTool(SERVER, 'list_sessions', { limit: 60 }, ev => {
+      if (ev.type === 'data') applySessions(ev.result)
+      else handleError(ev.error)
+    }, { refetchInterval: 30000 })
+  }
+
+  async function connect() {
+    try {
+      const result = await mcp.callTool(SERVER, 'list_sessions', { limit: 60 })
+      applySessions(result)
+      watchSessions()
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  function retract() {
+    S.sessions = new Map()
+    S.agents = new Map()
+    S.main = new Map()
+    S.activity = new Map()
+    S.selected = null
+    S.mode = 'blocked'
+    for (const stop of eventWatches.values()) stop()
+    eventWatches.clear()
+  }
+
+  function handleError(err) {
+    const code = (err && err.code) || 'upstream_error'
+    switch (code) {
+      case 'needs_reauth':
+        retract()
+        S.notice = { tone: 'fail', text: 'Your Claude Code Remote connection has lapsed. Reconnect it in claude.ai Settings → Connectors, then reload this page.' }
+        break
+      case 'server_not_connected':
+      case 'server_not_found':
+        retract()
+        S.notice = { tone: 'fail', text: 'Claude Code Remote is not connected for your account. Add it in claude.ai Settings → Connectors, then reload this page.' }
+        break
+      case 'selection_required':
+        retract()
+        S.notice = { tone: 'wait', text: 'You have more than one Claude Code Remote connector. Pick one when claude.ai asks, then reload this page.' }
+        break
+      case 'not_in_manifest':
+      case 'consent_required':
+      case 'approval_required':
+        retract()
+        S.notice = { tone: 'wait', text: 'Agent Deck needs your OK to read your Claude Code sessions.', action: { label: 'Allow access', run: connect } }
+        break
+      case 'blocked_by_policy':
+        retract()
+        S.notice = { tone: 'fail', text: 'Your organization does not allow this page to read Claude Code sessions.' }
+        break
+      case 'not_granted':
+      case 'capability_disabled':
+      case 'capability_removed':
+        startDemo('This view cannot reach your sessions, so this is example data. Open the page on claude.ai to see your own.')
+        return
+      case 'user_changed':
+        if (unwatchSessions) unwatchSessions()
+        retract()
+        S.notice = null
+        break
+      default:
+        if (S.mode === 'live') {
+          S.stale = true
+          S.notice = { tone: 'wait', text: 'Could not refresh just now. Showing the last update; the next refresh will try again.' }
+        } else {
+          S.mode = 'blocked'
+          S.notice = { tone: 'fail', text: 'Could not reach Claude Code Remote (' + code + ').', action: { label: 'Try again', run: connect } }
+        }
+    }
+    requestRender()
+  }
+
+  function refresh() {
+    if (S.mode === 'demo' || !mcp) { requestRender(); return }
+    if (!unwatchSessions) { connect(); return }
+    mcp.invalidate(SERVER).catch(() => connect())
+  }
+
+  // ---------- example data (only when this view cannot reach the connector) ----------
+  function startDemo(text) {
+    S.mode = 'demo'
+    S.notice = { tone: 'idle', text: text || 'Example data. Open this page on claude.ai to see your own sessions.' }
+    const now = Date.now()
+    const m = 60e3
+    const mk = (id, title, place, bucket, repo, branch, updatedAgo, extra) => ({
+      id, title, place, bucket, repo, branch, archived: false, offline: false,
+      updatedAt: now - updatedAgo, createdAt: now - updatedAgo - 40 * m, doing: '', needs: '', detail: '', recent: '', ...extra,
+    })
+    const list = [
+      mk('ex-1', 'Fix checkout rounding bug', 'cloud', 'working', 'storefront', 'claude/fix-rounding', 0.2 * m, { doing: 'Running the payment tests' }),
+      mk('ex-2', 'Speed up the search index', 'local', 'working', 'search-service', 'perf/indexer', 0.5 * m, { doing: 'Profiling the indexer' }),
+      mk('ex-3', 'Write v2 release notes', 'local', 'blocked', 'docs', 'main', 6 * m, { needs: 'Approve the changelog wording', detail: 'Draft ready for review' }),
+      mk('ex-4', 'Migrate settings storage', 'cloud', 'failed', 'desktop-app', 'claude/settings-store', 22 * m, { needs: 'Tests fail on Windows paths; decide whether to change the path helper', detail: 'Stopped after 3 failed test runs' }),
+      mk('ex-5', 'Clean up the image pipeline', 'cloud', 'review_ready', 'media-tools', 'claude/pipeline', 48 * m, { recent: 'Refactor pushed; 3 files changed' }),
+      mk('ex-6', 'Update onboarding copy', 'cloud', 'completed', 'web-app', 'claude/onboarding', 95 * m, { recent: 'Copy updated on 4 screens' }),
+      mk('ex-7', 'Tidy the CI config', 'local', 'completed', 'infra', 'main', 5 * 60 * m, { recent: 'Removed 2 unused jobs', offline: true }),
+    ]
+    S.sessions = new Map(list.map(s => [s.id, s]))
+    const ag = (id, desc, type, startAgo, action, final) => ({ ...blankAgent(id), desc, type, startedAt: now - startAgo, lastAt: final ? now - startAgo + 5 * m : now, action, actionAt: now, tools: 12, final: final || null, endedAt: final ? now - startAgo + 5 * m : 0, demoLive: !final })
+    S.agents = new Map([
+      ['ex-1', new Map([
+        ['a1', ag('a1', 'Trace rounding in the tax code', 'Explore', 9 * m, 'Searching for "roundHalf"')],
+        ['a2', ag('a2', 'Write regression tests', 'general-purpose', 4 * m, 'Writing checkout.test.ts')],
+        ['a3', ag('a3', 'Map the cart flow', 'Explore', 31 * m, '', 'done')],
+      ])],
+      ['ex-2', new Map([
+        ['b1', ag('b1', 'Benchmark old vs new indexer', 'general-purpose', 14 * m, 'Running the benchmark suite')],
+      ])],
+      ['ex-5', new Map([
+        ['c1', ag('c1', 'Review the pipeline diff', 'general-purpose', 70 * m, '', 'done')],
+      ])],
+    ])
+    S.main = new Map([['ex-1', { action: 'Running the payment tests', at: now - 20e3 }], ['ex-2', { action: 'Reading indexer.rs', at: now - 40e3 }]])
+    S.activity = new Map()
+    let seed = 7
+    const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
+    for (const [sid, count, from] of [['ex-1', 46, 42], ['ex-2', 30, 28], ['ex-3', 14, 30], ['ex-4', 18, 50], ['ex-5', 9, 60]]) {
+      const mp = new Map()
+      for (let i = 0; i < count; i++) mp.set(sid + i, now - rnd() * from * m)
+      S.activity.set(sid, mp)
+    }
+    S.updatedAt = now
+    requestRender()
+  }
+
+  function bumpDemo() {
+    if (S.mode !== 'demo') return
+    const now = Date.now()
+    for (const mp of S.agents.values()) for (const a of mp.values()) if (a.demoLive) a.lastAt = now
+    for (const s of S.sessions.values()) if (s.bucket === 'working') {
+      s.updatedAt = now - 15e3
+      const mp = S.activity.get(s.id)
+      if (mp) mp.set(s.id + now, now - 2e3)
+    }
+  }
+
+  // ---------- rendering: header, notice, rail ----------
+  let pending = false
+  function requestRender() {
+    if (pending) return
+    pending = true
+    requestAnimationFrame(() => { pending = false; render() })
+  }
+
+  function render() {
+    for (const v of VIEWS) $('view-' + v).setAttribute('aria-pressed', String(S.view === v))
+    $('range-day').setAttribute('aria-pressed', String(S.range === 'day'))
+    $('range-week').setAttribute('aria-pressed', String(S.range === 'week'))
+    $('board').hidden = S.view !== 'board'
+    $('lanes').hidden = S.view !== 'lanes'
+    $('orbit').hidden = S.view !== 'orbit'
+    renderSummary()
+    renderNotice()
+    if (S.view === 'board') renderBoard()
+    if (S.view === 'lanes') renderLanes()
+    if (S.view === 'orbit') ensureOrbit()
+    renderRail()
+  }
+
+  function renderSummary() {
+    const el = $('summary')
+    if (S.mode === 'connecting') { el.textContent = 'Connecting to your sessions…'; return }
+    if (S.mode === 'blocked') { el.textContent = 'Not connected'; return }
+    const list = visible()
+    const work = list.filter(s => s.bucket === 'working').length
+    const wait = list.filter(s => group(s.bucket) === 'wait').length
+    const agents = list.reduce((n, s) => n + agentsOf(s.id).running.length, 0)
+    const parts = [
+      list.length + (list.length === 1 ? ' session' : ' sessions'),
+      work + ' working',
+      wait + (wait === 1 ? ' needs you' : ' need you'),
+      agents + (agents === 1 ? ' agent running' : ' agents running'),
+    ]
+    el.replaceChildren(parts.join(' · '), ' · ',
+      S.mode === 'demo' ? 'example data' : h('span', { class: S.stale ? 'stale' : '' }, 'updated ' + ago(S.updatedAt)))
+  }
+
+  function renderNotice() {
+    const el = $('notice')
+    const n = S.notice
+    el.hidden = !n
+    if (!n) return
+    el.replaceChildren(...[
+      h('span', { class: 'dot t-' + n.tone }),
+      h('p', null, n.text),
+      n.action ? h('button', { id: 'notice-action', onclick: n.action.run }, n.action.label) : null,
+    ].filter(Boolean))
+  }
+
+  function shapeEl(s) {
+    return h('span', { class: 'shape ' + s.place + (s.offline ? ' hollow' : '') + ' t-' + tone(s.bucket), 'aria-hidden': 'true' })
+  }
+  function placeText(s) { return s.place === 'local' ? (s.offline ? 'Local · offline' : 'Local') : 'Cloud' }
+
+  function select(id) {
+    S.selected = S.selected === id ? null : id
+    requestRender()
+  }
+
+  function renderRail() {
+    const rail = $('rail')
+    const now = Date.now()
+    const s = S.selected && S.sessions.get(S.selected)
+    if (s) { rail.replaceChildren(...detail(s, now)); return }
+
+    const list = visible(now)
+    const waiting = list.filter(x => group(x.bucket) === 'wait')
+    const blocks = []
+    blocks.push(h('section', null,
+      h('h2', { class: 'eyebrow' }, h('span', { class: 'dot t-wait' }), 'Needs you'),
+      waiting.length
+        ? waiting.map(x => h('button', { class: 'row', onclick: () => select(x.id) },
+            shapeEl(x), h('span', { class: 'clip' }, x.title), h('span', { class: 'mono' }, ago(x.updatedAt, now)),
+            h('span', { class: 'sub' }, x.needs || x.detail || LABEL[x.bucket])))
+        : h('p', { class: 'empty' }, S.mode === 'connecting' ? 'Loading…' : 'Nothing is waiting on you.'),
+    ))
+    if (S.view === 'orbit' && list.length) {
+      blocks.push(h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Sessions'),
+        list.map(x => h('button', { class: 'row', onclick: () => select(x.id) },
+          shapeEl(x), h('span', { class: 'clip' }, x.title),
+          h('span', { class: 'mono' }, x.bucket === 'working' ? plural(agentsOf(x.id, now).running.length, 'agent') : ago(x.updatedAt, now)))),
+      ))
+    }
+    if (S.agentNote) blocks.push(h('p', { class: 'empty' }, S.agentNote))
+    blocks.push(h('section', null,
+      h('h2', { class: 'eyebrow' }, 'Key'),
+      h('ul', { class: 'legend' },
+        h('li', null, h('span', { class: 'shape cloud t-idle' }), 'Cloud session'),
+        h('li', null, h('span', { class: 'shape local t-idle' }), 'Local session'),
+        h('li', null, h('span', { class: 'shape local hollow t-idle' }), 'Computer offline'),
+        h('li', null, h('span', { class: 'dot t-work' }), 'Working · agents'),
+        h('li', null, h('span', { class: 'dot t-wait' }), 'Waiting for you'),
+        h('li', null, h('span', { class: 'dot t-fail' }), 'Stopped with an error'),
+        h('li', null, h('span', { class: 'dot t-done' }), 'Finished'),
+        h('li', null, h('span', { class: 'dot t-idle' }), 'Idle'),
+      ),
+      h('p', { class: 'keys' }, h('span', { class: 'k' }, '1'), h('span', { class: 'k' }, '2'), h('span', { class: 'k' }, '3'), ' layouts  ',
+        h('span', { class: 'k' }, 'F'), ' fullscreen  ', h('span', { class: 'k' }, 'R'), ' refresh  ', h('span', { class: 'k' }, 'Esc'), ' close'),
+    ))
+    rail.replaceChildren(...blocks)
+  }
+
+  function detail(s, now) {
+    const { running, finished } = agentsOf(s.id, now)
+    const main = S.main.get(s.id)
+    const doing = s.bucket === 'working' ? (main && main.action) || s.doing : s.doing
+    const rows = [
+      ['Where', s.place === 'local' ? (s.offline ? 'Your computer (offline)' : 'Your computer') : 'Cloud'],
+      s.repo ? ['Project', s.repo + (s.branch ? ' · ' + s.branch : '')] : null,
+      doing ? [s.bucket === 'working' ? 'Doing' : 'Last task', doing] : null,
+      s.needs ? ['Needs you', s.needs, 'needs'] : null,
+      (s.recent || s.detail) ? ['Last turn', s.recent || s.detail] : null,
+      ['Updated', ago(s.updatedAt, now)],
+      s.createdAt ? ['Started', ago(s.createdAt, now)] : null,
+    ].filter(Boolean)
+    const agentList = []
+    for (const a of running) {
+      agentList.push(h('li', null, h('span', { class: 'dot t-work pulse' }),
+        h('span', null, a.desc || 'Agent', h('br'), h('span', { class: 'what' }, (a.action || 'Starting up') + ' · ' + span(now - a.startedAt)))))
+    }
+    for (const a of finished) {
+      const t = a.status === 'failed' ? 'fail' : a.status === 'stopped' ? 'idle' : 'done'
+      agentList.push(h('li', null, h('span', { class: 'dot t-' + t }),
+        h('span', { class: 'what' }, (a.desc || 'Agent') + ' · ' + (a.status === 'failed' ? 'failed' : a.status === 'stopped' ? 'stopped' : 'finished'))))
+    }
+    return [
+      h('div', { class: 'detail-head' },
+        h('span', { class: 'pill' }, h('span', { class: 'dot t-' + tone(s.bucket) + (s.bucket === 'working' ? ' pulse' : '') }), LABEL[s.bucket] || 'Idle'),
+        h('button', { class: 'btn', id: 'close-detail', onclick: () => select(null) }, 'Close')),
+      h('h2', { class: 'detail-title' }, s.title),
+      h('dl', null, rows.map(([k, v, cls]) => [h('dt', null, k), h('dd', { class: cls || '' }, v)])),
+      h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Agents'),
+        agentList.length ? h('ul', { class: 'agents' }, agentList)
+          : h('p', { class: 'empty' }, s.bucket === 'working' ? 'No agents seen yet in this session.' : 'Agents show here while the session is working.')),
+      S.mode === 'live' ? h('a', { class: 'open', href: 'https://claude.ai/code/' + encodeURIComponent(s.id), target: '_blank', rel: 'noopener' }, 'Open session ↗') : null,
+    ]
+  }
+
+  // ---------- Board ----------
+  function renderBoard() {
+    const now = Date.now()
+    const list = visible(now)
+    const cols = [
+      ['work', 'Working', list.filter(s => group(s.bucket) === 'work'), 'Nothing is running right now.'],
+      ['wait', 'Needs you', list.filter(s => group(s.bucket) === 'wait'), 'Nothing is waiting on you.'],
+      ['idle', 'Recent', list.filter(s => group(s.bucket) === 'recent'), S.range === 'day' ? 'No other sessions today.' : 'No other sessions this week.'],
+    ]
+    $('board').replaceChildren(h('div', { class: 'cols' }, cols.map(([t, name, items, none]) =>
+      h('div', { class: 'col' },
+        h('div', { class: 'col-head' }, h('span', { class: 'dot t-' + t }), h('h2', { class: 'eyebrow' }, name), h('span', { class: 'mono' }, String(items.length))),
+        items.length ? items.map(s => card(s, now)) : h('p', { class: 'empty' }, S.mode === 'connecting' ? 'Loading…' : none)))))
+  }
+
+  function card(s, now) {
+    const { running, finished } = agentsOf(s.id, now)
+    const main = S.main.get(s.id)
+    const line = s.needs
+      ? h('div', { class: 'card-line needs' }, s.needs)
+      : h('div', { class: 'card-line' }, s.bucket === 'working' ? (main && main.action) || s.doing || 'Working' : s.recent || s.detail || s.doing || LABEL[s.bucket])
+    const agentRows = [
+      ...running.map(a => h('li', null, h('span', { class: 'dot t-work pulse' }), h('span', { class: 'clip' }, a.desc || 'Agent', ' ', h('span', { class: 'what' }, '· ' + (a.action || 'starting up'))))),
+      ...finished.slice(0, 2).map(a => h('li', null, h('span', { class: 'dot t-' + (a.status === 'failed' ? 'fail' : 'done') }), h('span', { class: 'clip what' }, a.desc || 'Agent'))),
+    ]
+    return h('button', { class: 'card' + (S.selected === s.id ? ' sel' : ''), onclick: () => select(s.id) },
+      h('div', { class: 'card-top' }, shapeEl(s), h('span', { class: 'tag' }, placeText(s)), h('span', { class: 'mono' }, ago(s.updatedAt, now))),
+      h('div', { class: 'card-title' }, s.title),
+      s.repo ? h('div', { class: 'mono clip' }, s.repo + (s.branch ? ' · ' + s.branch : '')) : null,
+      line,
+      agentRows.length ? h('ul', { class: 'agents' }, agentRows) : null)
+  }
+
+  // ---------- Lanes ----------
+  function renderLanes() {
+    const now = Date.now()
+    const from = now - LANE_MS
+    const x = t => Math.max(0, Math.min(100, ((t - from) / LANE_MS) * 100))
+    const list = visible(now)
+    const head = h('div', { class: 'lanes-head' }, h('div', { class: 'spacer mono' }, 'Session'),
+      h('div', { class: 'axis' }, ['60m ago', '45m', '30m', '15m', 'now'].map((t, i) => h('span', { style: 'left:' + (i * 25) + '%' }, t))))
+    const lanes = list.map(s => {
+      const marks = []
+      const seen = S.activity.get(s.id)
+      if (seen) for (const t of seen.values()) if (t >= from) marks.push(h('span', { class: 'tick' + (now - t < 120e3 ? ' hot' : ''), style: 'left:' + x(t) + '%' }))
+      const { running, finished } = agentsOf(s.id, now)
+      const bars = [...running, ...finished].filter(a => a.startedAt && Math.max(a.lastAt, a.endedAt) >= from).slice(0, 6)
+      bars.forEach((a, i) => {
+        const end = a.status === 'running' ? now : Math.max(a.endedAt, a.lastAt, a.startedAt + 30e3)
+        const left = x(a.startedAt)
+        const width = Math.max(1.2, x(end) - left)
+        const cls = a.status === 'running' ? 'run' : a.status === 'failed' ? 'bad' : 'end'
+        marks.push(h('span', { class: 'bar ' + cls, style: 'left:' + left + '%;width:' + width + '%;top:' + (21 + (i % 2) * 15) + 'px', title: a.desc }, a.desc || 'Agent'))
+      })
+      if (s.updatedAt >= from && !seen) marks.push(h('span', { class: 'mark', style: 'left:' + x(s.updatedAt) + '%' }))
+      if (s.bucket === 'working') marks.push(h('span', { class: 'nowcap pulse' }))
+      if (!marks.length) marks.push(h('span', { class: 'when' }, 'last active ' + ago(s.updatedAt, now)))
+      return h('button', { class: 'lane' + (S.selected === s.id ? ' sel' : ''), onclick: () => select(s.id) },
+        h('div', { class: 'lane-label' },
+          h('div', { class: 'lane-name' }, shapeEl(s), h('span', { class: 'clip' }, s.title)),
+          h('div', { class: 'mono clip' }, placeText(s) + ' · ' + (LABEL[s.bucket] || 'Idle') + (s.repo ? ' · ' + s.repo : ''))),
+        h('div', { class: 'track' }, marks))
+    })
+    $('lanes').replaceChildren(h('div', { class: 'lanes' }, head,
+      lanes.length ? lanes : h('p', { class: 'empty' }, S.mode === 'connecting' ? 'Loading…' : 'No sessions in this range.')))
+  }
+
+  // ---------- Orbit (canvas) ----------
+  const cv = $('orbit')
+  const ctx = cv.getContext('2d')
+  let col = {}
+  let hits = []
+  let hovered = null
+  let orbitRunning = false
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement)
+    for (const k of ['bg', 'panel', 'raise', 'line', 'fg', 'dim', 'faint', 'accent', 'work', 'wait', 'done', 'fail', 'idle']) col[k] = cs.getPropertyValue('--' + k).trim()
+  }
+  function alpha(hex, a) {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    if (!m) return hex
+    const n = parseInt(m[1], 16)
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'
+  }
+
+  function ensureOrbit() {
+    if (orbitRunning || S.view !== 'orbit') return
+    orbitRunning = true
+    requestAnimationFrame(frame)
+  }
+  function frame(t) {
+    if (S.view !== 'orbit' || document.hidden) { orbitRunning = false; return }
+    drawOrbit(reduceMotion.matches ? 0 : t / 1000)
+    requestAnimationFrame(frame)
+  }
+
+  function shapePath(place, x, y, r) {
+    ctx.beginPath()
+    if (place === 'local') {
+      if (ctx.roundRect) ctx.roundRect(x - r, y - r, r * 2, r * 2, r * 0.3)
+      else ctx.rect(x - r, y - r, r * 2, r * 2)
+    } else ctx.arc(x, y, r, 0, Math.PI * 2)
+  }
+
+  function label(text, x, y, font, color) {
+    ctx.font = font
+    ctx.lineWidth = 4
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = alpha(col.panel, 0.92)
+    ctx.strokeText(text, x, y)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+  }
+
+  function drawOrbit(sec) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1)
+    const W = cv.clientWidth
+    const H = cv.clientHeight
+    if (!W || !H) return
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+
+    const now = Date.now()
+    const compact = W < 640
+    const cx = W / 2
+    const cy = H / 2 + (compact ? 22 : 14)
+    const padX = compact ? 46 : 190
+    const padY = compact ? 150 : 130
+    const tilt = Math.max(0.5, Math.min(0.92, (H - padY) / Math.max(1, W - padX)))
+    const R = Math.max(70, Math.min((W - padX) / 2, (H - padY) / 2 / tilt))
+    const list = visible(now)
+    const rings = [
+      { key: 'work', r: R * 0.36, name: 'WORKING', speed: 1 / 240, size: 13 },
+      { key: 'wait', r: R * 0.67, name: 'NEEDS YOU', speed: -1 / 360, size: 11 },
+      { key: 'recent', r: R, name: 'RECENT', speed: 1 / 720, size: 8 },
+    ]
+
+    // rings
+    for (const ring of rings) {
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, ring.r, ring.r * tilt, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? alpha(col.work, 0.35) : ring.key === 'wait' ? alpha(col.wait, 0.22) : col.line
+      ctx.lineWidth = ring.key === 'work' ? 1.5 : 1
+      ctx.setLineDash(ring.key === 'recent' ? [3, 5] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // which ring is which, in the corner rather than on the rings, so planets never sit on it
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    rings.forEach((ring, i) => {
+      const y0 = 22 + i * 17
+      ctx.beginPath()
+      ctx.ellipse(24, y0, 7, 7 * 0.6, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? col.work : ring.key === 'wait' ? col.wait : col.faint
+      ctx.lineWidth = 1.5
+      ctx.setLineDash(ring.key === 'recent' ? [2, 2] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.font = '500 10px JetBrains Mono, ui-monospace, monospace'
+      ctx.fillStyle = col.faint
+      ctx.fillText((i === 0 ? 'INNER · ' : i === 1 ? 'MIDDLE · ' : 'OUTER · ') + ring.name, 38, y0 + 1)
+    })
+    ctx.textBaseline = 'alphabetic'
+
+    // place sessions on rings
+    const placed = []
+    for (const ring of rings) {
+      const items = list.filter(s => group(s.bucket) === ring.key)
+      const n = items.length
+      const turn = sec * ring.speed * Math.PI * 2
+      items.forEach((s, j) => {
+        const a = -Math.PI / 2 + turn + (j * Math.PI * 2) / Math.max(1, n) + (ring.key === 'wait' ? Math.PI / Math.max(2, n) : 0)
+        const depth = Math.sin(a)
+        placed.push({ s, ring, n, x: cx + ring.r * Math.cos(a), y: cy + ring.r * Math.sin(a) * tilt, depth, r: ring.size * (1 + 0.14 * depth) })
+      })
+    }
+
+    // spokes from the hub to working sessions
+    for (const p of placed) {
+      if (p.ring.key !== 'work') continue
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(p.x, p.y)
+      ctx.strokeStyle = alpha(col.work, 0.45)
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 7])
+      ctx.lineDashOffset = -sec * 14
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // hub
+    ctx.beginPath()
+    ctx.arc(cx, cy, 24, 0, Math.PI * 2)
+    ctx.fillStyle = col.raise
+    ctx.fill()
+    ctx.strokeStyle = col.line
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '600 12px Chakra Petch, ui-sans-serif, sans-serif'
+    ctx.fillStyle = col.dim
+    ctx.fillText('YOU', cx, cy + 1)
+    ctx.textBaseline = 'alphabetic'
+
+    // sessions, back to front
+    hits = []
+    placed.sort((a, b) => a.depth - b.depth)
+    const pulse = 0.5 + 0.5 * Math.sin(sec * 3)
+    for (const p of placed) {
+      const { s, x, y, r } = p
+      const t = tone(s.bucket)
+      const c = col[t] || col.idle
+      const isSel = S.selected === s.id
+      const isHover = hovered === s.id
+      const { running } = s.bucket === 'working' ? agentsOf(s.id, now) : { running: [] }
+
+      if (running.length) {
+        ctx.beginPath()
+        ctx.ellipse(x, y, r + 15, (r + 15) * 0.55, 0, 0, Math.PI * 2)
+        ctx.strokeStyle = alpha(col.work, 0.25)
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+      if (s.bucket === 'working' || group(s.bucket) === 'wait') {
+        shapePath(s.place, x, y, r + 4 + pulse * 4)
+        ctx.strokeStyle = alpha(c, 0.15 + 0.25 * (1 - pulse))
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+      ctx.save()
+      if (s.bucket === 'working') { ctx.shadowColor = c; ctx.shadowBlur = 14 + 8 * pulse }
+      shapePath(s.place, x, y, r)
+      if (s.offline) { ctx.lineWidth = 2.5; ctx.strokeStyle = c; ctx.stroke() }
+      else { ctx.fillStyle = group(s.bucket) === 'recent' ? alpha(c, 0.75) : c; ctx.fill() }
+      ctx.restore()
+      if (isSel || isHover) {
+        shapePath(s.place, x, y, r + 5)
+        ctx.strokeStyle = isSel ? col.accent : col.fg
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+
+      // agents as moons
+      running.forEach((a, k) => {
+        const ang = sec * (Math.PI * 2 / 7) + (k * Math.PI * 2) / running.length
+        const mx = x + (r + 15) * Math.cos(ang)
+        const my = y + (r + 15) * 0.55 * Math.sin(ang)
+        ctx.save()
+        ctx.shadowColor = col.work
+        ctx.shadowBlur = 8
+        ctx.beginPath()
+        ctx.arc(mx, my, 3.4, 0, Math.PI * 2)
+        ctx.fillStyle = col.fg
+        ctx.fill()
+        ctx.restore()
+      })
+
+      // labels
+      const showLabel = isSel || isHover || (compact ? p.ring.key === 'work' : (p.ring.key !== 'recent' || p.n <= 9))
+      if (showLabel) {
+        const max = compact ? 20 : p.ring.key === 'recent' ? 22 : 28
+        // upper half of a ring: label above the planet, so it never runs into the hub or an inner ring
+        const above = p.depth < -0.25
+        const gap = r + (running.length ? 14 : 6)
+        const y1 = above ? y - gap - 16 : y + gap + 11
+        const y2 = above ? y - gap - 3 : y + gap + 25
+        ctx.textAlign = 'center'
+        label(clip(s.title, isHover || isSel ? 60 : max), x, y1,
+          '600 12px Figtree, ui-sans-serif, sans-serif', p.ring.key === 'recent' && !isHover && !isSel ? col.dim : col.fg)
+        const sub = (s.place === 'local' ? (s.offline ? 'LOCAL · OFFLINE' : 'LOCAL') : 'CLOUD') + ' · ' +
+          (running.length ? running.length + (running.length === 1 ? ' AGENT' : ' AGENTS') : ago(s.updatedAt, now).toUpperCase())
+        label(sub, x, y2, '500 9.5px JetBrains Mono, ui-monospace, monospace', col.faint)
+      }
+      hits.push({ id: s.id, x, y, r: r + 10 })
+    }
+
+    if (!list.length) {
+      ctx.textAlign = 'center'
+      label(S.mode === 'connecting' ? 'Connecting…' : S.mode === 'blocked' ? 'Not connected' : (S.range === 'day' ? 'No sessions in the last day' : 'No sessions this week'),
+        cx, cy + 52, '500 13px Figtree, ui-sans-serif, sans-serif', col.dim)
+    }
+  }
+
+  function hitAt(ev) {
+    const rect = cv.getBoundingClientRect()
+    const x = ev.clientX - rect.left
+    const y = ev.clientY - rect.top
+    let best = null
+    let bestD = Infinity
+    for (const p of hits) {
+      const d = Math.hypot(p.x - x, p.y - y)
+      if (d <= p.r && d < bestD) { best = p.id; bestD = d }
+    }
+    return best
+  }
+  cv.addEventListener('pointermove', ev => { hovered = hitAt(ev); cv.style.cursor = hovered ? 'pointer' : 'default' })
+  cv.addEventListener('pointerleave', () => { hovered = null })
+  cv.addEventListener('click', ev => { const id = hitAt(ev); if (id) select(id); else if (S.selected) select(null) })
+
+  // ---------- controls ----------
+  function setView(v) { S.view = v; store.set('deck.view', v); requestRender() }
+  function setRange(r) { S.range = r; store.set('deck.range', r); requestRender() }
+  function fullscreen() {
+    const d = document
+    if (d.fullscreenElement) d.exitFullscreen().catch(() => {})
+    else if (d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(() => {})
+  }
+  $('views').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view) })
+  $('ranges').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setRange(b.dataset.range) })
+  $('refresh').addEventListener('click', refresh)
+  $('full').addEventListener('click', fullscreen)
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return
+    const k = e.key.toLowerCase()
+    if (k === '1' || k === '2' || k === '3') setView(VIEWS[Number(k) - 1])
+    else if (k === 't') setView(VIEWS[(VIEWS.indexOf(S.view) + 1) % VIEWS.length])
+    else if (k === 'f') fullscreen()
+    else if (k === 'r') refresh()
+    else if (k === 'escape' && S.selected) select(null)
+  })
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { ensureOrbit(); requestRender() } })
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors)
+  new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] })
+  setInterval(() => { bumpDemo(); requestRender() }, 5000)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(requestRender)
+
+  // ---------- start ----------
+  readColors()
+  render()
+  ;(async () => {
+    if (!window.claude || typeof window.claude.use !== 'function') { startDemo(); return }
+    try { mcp = await window.claude.use('mcp') } catch { mcp = null }
+    if (!mcp) { startDemo('This view cannot reach your sessions, so this is example data. Open the page on claude.ai to see your own.'); return }
+    connect()
+  })()
+})()
+</script>
