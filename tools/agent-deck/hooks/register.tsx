@@ -287,18 +287,22 @@ async function remember($: EngineInterface, type: string, ms: number) {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'agent-deck',
-      description: "Open the 3D view of this session's agents",
-    })
+    // Both at once, before anything else waits: a session that reports its command list (to the
+    // Claude app, for one) while the second was still to come would leave that one out.
+    await Promise.all([
+      $.command.register({
+        name: 'agent-deck',
+        description: "Open the agent deck pane for this session's agents",
+      }),
+      $.command.register({
+        name: 'agent-deck-window',
+        description: 'Open the agent deck window: every session on your account (any screen, fullscreen); "off" stops feeding it',
+      }),
+    ])
     const stored = await $.store.get(HISTORY_KEY)
     if (stored && typeof stored === 'object') {
       await update($, history, () => stored as Record<string, number[]>)
     }
-    await $.command.register({
-      name: 'agent-deck-window',
-      description: 'Pop the agent deck out into its own window (any screen, fullscreen); "off" stops feeding it',
-    })
     windowOn = (await $.store.get(WINDOW_KEY)) === true
     const startAt = await $.clock.now()
     await update($, now, () => startAt)

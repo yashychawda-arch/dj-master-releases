@@ -1,6 +1,6 @@
 {
   "name": "agent-deck",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A live view of Claude's agents and every session on your account, local and cloud: a pane in the session and a pop-out window with Orbit, Board and Lanes layouts",
   "author": {
     "name": "Yoshi C"
