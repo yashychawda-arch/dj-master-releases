@@ -66,6 +66,8 @@ button { font: inherit; color: inherit; }
 .notice { grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .86rem; }
 .notice .dot { flex: none; }
 .notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
+.notice-link { color: var(--accent); font-weight: 600; text-decoration: none; padding: 6px 4px; }
+.notice-link:hover { text-decoration: underline; }
 .notice button { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
 
 /* Stage + rail */
@@ -527,7 +529,12 @@ dd.needs { color: var(--wait); }
         break
       case 'blocked_by_policy':
         retract()
-        S.notice = { tone: 'fail', text: 'Your organization does not allow this page to read Claude Code sessions.' }
+        S.notice = {
+          tone: 'fail',
+          text: 'Reading sessions is switched off for Claude Code Remote. In connector settings, open Claude Code Remote and set list_sessions and list_events to allowed under its tool permissions, then press Try again. If those settings are locked, an admin has turned them off.' + errNote(err),
+          link: { href: 'https://claude.ai/customize/connectors', label: 'Connector settings ↗' },
+          action: { label: 'Try again', run: connect },
+        }
         break
       case 'not_granted':
       case 'capability_disabled':
@@ -550,6 +557,8 @@ dd.needs { color: var(--wait); }
     }
     requestRender()
   }
+
+  const errNote = e => e && e.message ? ' (' + clip(e.message, 160) + ')' : ''
 
   function refresh() {
     if (S.mode === 'demo' || !mcp) { requestRender(); return }
@@ -664,6 +673,7 @@ dd.needs { color: var(--wait); }
     el.replaceChildren(...[
       h('span', { class: 'dot t-' + n.tone }),
       h('p', null, n.text),
+      n.link ? h('a', { class: 'notice-link', href: n.link.href, target: '_blank', rel: 'noopener' }, n.link.label) : null,
       n.action ? h('button', { id: 'notice-action', onclick: n.action.run }, n.action.label) : null,
     ].filter(Boolean))
   }
