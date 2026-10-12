@@ -1,5 +1,5 @@
 {
-  "version": "1.36.0",
-  "notes": "New pages: Set and Insights. Deleted files wait 30 days in a holding folder, with Undo. Listen in the app, tags, votes on requests, VirtualDJ and Traktor.",
+  "version": "1.36.1",
+  "notes": "Fixed: coming back from the taskbar while maximised could leave the window showing only its background. It now draws itself again.",
   "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
 }
