@@ -1,0 +1,13 @@
+{
+  "name": "agent-deck",
+  "description": "Agent deck: a live 3D pane of what Claude's agents are doing",
+  "owner": {
+    "name": "Yoshi C"
+  },
+  "plugins": [
+    {
+      "name": "agent-deck",
+      "source": "./"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "agent-deck",
+  "version": "0.1.0",
+  "description": "A live 3D pane of this session's agents: which types can start, which are working, what each is doing, and time left",
+  "author": {
+    "name": "Yoshi C"
+  },
+  "types": "./types/index.d.ts"
+}
