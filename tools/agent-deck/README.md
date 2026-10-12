@@ -22,12 +22,22 @@ Claude does not report progress or a finish time, so the deck estimates, and say
 
 ## Install (on the computer where your sessions run)
 
-PowerShell:
+PowerShell (no Administrator needed):
 
 ```powershell
 git clone --branch claude/beautiful-dijkstra-xijgme --depth 1 https://github.com/yashychawda-arch/dj-master-releases "$HOME\agent-deck-src"
 claude plugin marketplace add "$HOME\agent-deck-src\tools\agent-deck"
 claude plugin install agent-deck@agent-deck
+```
+
+If PowerShell says `claude` is not recognized, you only have the desktop app, which runs its own copy of
+Claude Code that the terminal can't see. Install the terminal command once (it shares settings with the
+app), then run the two plugin lines by its full path so you don't need a new window:
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+& "$HOME\.local\bin\claude.exe" plugin marketplace add "$HOME\agent-deck-src\tools\agent-deck"
+& "$HOME\.local\bin\claude.exe" plugin install agent-deck@agent-deck
 ```
 
 New sessions open the deck by themselves. In a session that is already running, type `/reload-plugins`
