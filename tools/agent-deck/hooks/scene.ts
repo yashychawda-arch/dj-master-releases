@@ -56,7 +56,7 @@ export function estimate(a: DeckAgent, now: number, typical: number[] | undefine
     return { text: `running past its usual ${fmt(usual)}; no estimate` }
   }
   if (total > 0) return { text: `0/${total} steps; estimate after the first`, fraction: 0 }
-  if (elapsed === undefined) return { text: 'no estimate (it started before the deck loaded)' }
+  if (elapsed === undefined) return { text: 'no estimate yet' }
 
   return { text: 'no estimate yet (it keeps no step list, and too few past runs)' }
 }
@@ -295,7 +295,7 @@ function label(p: P2, text: string, opts: { size: number; color: string; weight?
 }
 
 const STYLE = `
-.lbl{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;paint-order:stroke;stroke:#070b16;stroke-width:3px;stroke-linejoin:round}
+.lbl{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;paint-order:stroke;stroke:#070b16;stroke-width:4px;stroke-linejoin:round}
 .pulse{animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
 .spin{stroke-dasharray:5 7;animation:spin 2.4s linear infinite}
@@ -345,7 +345,7 @@ export function buildScene(s: SceneInput): string {
   labels.push({
     depth: mainTop.depth,
     svg: label(mainTop, s.isMainWorking ? 'Main session · working' : 'Main session · waiting for you', {
-      size: 12,
+      size: 16,
       color: s.isMainWorking ? '#d9c6ff' : '#a9aecb',
     }),
   })
@@ -384,7 +384,7 @@ export function buildScene(s: SceneInput): string {
     const pct = a.fraction === undefined ? '' : ` · ${Math.round(a.fraction * 100)}%`
     labels.push({
       depth: tag.depth,
-      svg: `<g class="bob">${label({ ...tag, y: tag.y - 14 }, `#${a.n}${pct}`, { size: 15, weight: 700, color })}${label(tag, clip(a.label, 26), { size: 12, color: '#e6f6ff' })}</g>`,
+      svg: `<g class="bob">${label({ ...tag, y: tag.y - 19 }, `#${a.n}${pct}`, { size: 20, weight: 700, color })}${label(tag, clip(a.label, 24), { size: 16, color: '#e6f6ff' })}</g>`,
     })
   })
 
@@ -395,7 +395,7 @@ export function buildScene(s: SceneInput): string {
     put(x, z, box(x, z, 0.38, 0, 0.55, color, yaw, { opacity: 0.85, title: `${a.label} (${a.status})` }))
     const tag = project([x, 0.95, z], yaw)
     const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
-    labels.push({ depth: tag.depth, svg: label(tag, `${mark} ${clip(a.label, 20)}`, { size: 10, color: shade(color, 1.1) }) })
+    labels.push({ depth: tag.depth, svg: label(tag, `${mark} ${clip(a.label, 18)}`, { size: 13, color: shade(color, 1.1) }) })
   })
 
   // Agent types that can be started: pedestals on the rim.
@@ -404,7 +404,7 @@ export function buildScene(s: SceneInput): string {
     const name = shown[i]!
     put(x, z, box(x, z, 0.3, 0, 0.3, COLORS.type, yaw, { opacity: 0.9, title: `${name}: ready to start` }))
     const tag = project([x, 0.62, z], yaw)
-    labels.push({ depth: tag.depth, svg: label(tag, clip(name, 18), { size: 10, color: '#aab4d4' }) })
+    labels.push({ depth: tag.depth, svg: label(tag, clip(name, 18), { size: 13, color: '#aab4d4' }) })
   })
 
   objects.sort((a, b) => b.depth - a.depth)
@@ -425,10 +425,10 @@ export function buildScene(s: SceneInput): string {
     ...back,
     ...objects.flatMap(o => o.faces.map(f => f.svg)),
     ...labels.map(l => l.svg),
-    `<text x="20" y="30" font-size="13" font-weight="700" fill="#e6ecff" class="lbl" letter-spacing="2">AGENT DECK</text>`,
-    `<text x="20" y="50" font-size="12" fill="#9fb0d9" class="lbl">${esc(headline)}</text>`,
+    `<text x="20" y="30" font-size="17" font-weight="700" fill="#e6ecff" class="lbl" letter-spacing="2">AGENT DECK</text>`,
+    `<text x="20" y="54" font-size="15" fill="#9fb0d9" class="lbl">${esc(headline)}</text>`,
     s.running.length === 0
-      ? `<text x="${W / 2}" y="${H - 22}" font-size="12" fill="#8592b8" text-anchor="middle" class="lbl">No agents working. Towers appear here when Claude starts one.</text>`
+      ? `<text x="${W / 2}" y="${H - 22}" font-size="15" fill="#8592b8" text-anchor="middle" class="lbl">No agents working. Towers appear here when Claude starts one.</text>`
       : '',
     '</svg>',
   ].join('')

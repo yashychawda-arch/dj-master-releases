@@ -50,7 +50,7 @@ describe('time left', () => {
 
   test('says so when there is nothing to estimate from', async () => {
     expect(estimate(agent(), 1000, undefined).text).toContain('no estimate yet')
-    expect(estimate(agent({ startedAt: undefined }), 1000, undefined).text).toContain('before the deck loaded')
+    expect(estimate(agent({ startedAt: undefined }), 1000, undefined).text).toBe('no estimate yet')
   })
 })
 

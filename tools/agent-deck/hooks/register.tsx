@@ -317,7 +317,8 @@ export const register: Register = on => {
         yaw: angle,
       })
       const alt = `${rows.length} agents working: ${rows.map(r => r.a.description).join(', ') || 'none'}. ${ty.length} agent types ready.`
-      scene = <Svg key="scene" source={source} alt={alt} isInteractive />
+      // An image scales to the pane's width; the desktop app drew the interactive frame at a fixed 300 by 150.
+      scene = <Svg key="scene" source={source} alt={alt} />
     }
 
     return (
@@ -358,8 +359,8 @@ export const register: Register = on => {
               <Text>  Now: {a.status === 'idle' ? 'waiting for a message' : (a.action ?? 'starting up')}</Text>
               <Text dimColor>
                 {'  '}
-                {a.startedAt === undefined ? 'started before the deck loaded' : `${fmt(t - a.startedAt)} so far`} ·{' '}
-                {est.text} · {a.tools} tool calls
+                {a.startedAt === undefined ? 'running since before the deck loaded' : `${fmt(t - a.startedAt)} so far`} ·{' '}
+                {est.text} · {a.tools} tool calls{a.startedAt === undefined ? ' seen' : ''}
               </Text>
             </Box>
           ))}
