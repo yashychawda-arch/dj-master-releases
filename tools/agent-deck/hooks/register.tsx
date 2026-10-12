@@ -2,8 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { AgentInfo, EngineInterface, Register } from 'claude-code'
 
 import type { DeckAgent, DeckStatus } from '../types'
+import { CLOUD_MS, CLOUD_URL, type CloudBlock, MAX_HISTORIES, cloudAgents, cloudError, cloudSessions, parseRows } from './cloud'
 import { buildScene, describeCall, estimate, fmt, nextSteps } from './scene'
-import { HEARTBEAT_MS, type Os, decode, encode, merge, openCommands, sessionEntry, signature } from './window'
+import { type DeckFile, HEARTBEAT_MS, type Os, decodeFile, encode, merge, openCommands, sessionEntry, signature } from './window'
 
 const PANE = 'agent-deck'
 const TITLE = 'Agent deck'
@@ -113,6 +114,7 @@ async function tick($: EngineInterface) {
   const isBusy = m.isWorking || Object.values(await read($, agents)).some(a => isLive(a.status))
   if (isBusy) await update($, now, () => t)
   await publish($).catch(() => undefined)
+  await refreshCloud($).catch(() => undefined)
 }
 
 // --- The pop-out window ------------------------------------------------------
@@ -153,10 +155,80 @@ async function publish($: EngineInterface, force = false) {
   lastPublishedAt = t
 }
 
+async function readFile($: EngineInterface, file: string): Promise<DeckFile> {
+  return $.fs.read(file).then(decodeFile, (): DeckFile => ({ sessions: {} }))
+}
+
 async function writeEntry($: EngineInterface, id: string, entry: Parameters<typeof merge>[2], t: number) {
   const file = `${await deckDir($)}/deck-data.js`
-  const existing = await $.fs.read(file).then(decode, () => ({}))
-  await $.fs.write(file, encode(merge(existing, id, entry, t)))
+  const existing = await readFile($, file)
+  await $.fs.write(file, encode(merge(existing.sessions, id, entry, t), existing.cloud))
+}
+
+// --- Cloud sessions ----------------------------------------------------------
+// Every session feeding the window can fetch the account's session list; whichever finds the
+// file's copy older than CLOUD_MS does, so several open sessions still make one request.
+let cloudBusy = false
+let lastCloudTry = 0
+
+/** The two engine calls the cloud list needs. */
+export type CloudEngine = {
+  session: Pick<EngineInterface['session'], 'authorize'>
+  http: Pick<EngineInterface['http'], 'fetch'>
+}
+
+/** The account's sessions and, for the working ones, their recent history, as this person. */
+export async function fetchCloud($: CloudEngine, t: number, prev: CloudBlock | undefined): Promise<CloudBlock> {
+  let auth: Awaited<ReturnType<CloudEngine['session']['authorize']>>
+  try {
+    auth = await $.session.authorize()
+  } catch {
+    return { fetchedAt: t, error: 'This version of Claude Code cannot list cloud sessions. Update Claude Code, then reopen the window.', sessions: [] }
+  }
+  if (!auth) {
+    return { fetchedAt: t, error: 'This Claude Code is not signed in to claude.ai, so cloud sessions cannot be listed.', sessions: [] }
+  }
+  const init = { auth: auth.handle, headers: { 'anthropic-version': '2023-06-01', 'content-type': 'application/json' } }
+  const list = await $.http.fetch(`${CLOUD_URL}?limit=100`, init)
+  if (!list.ok) return { fetchedAt: t, error: cloudError(list.status), sessions: prev?.sessions ?? [] }
+  const sessions = cloudSessions(list.text)
+  for (const s of sessions.filter(x => x.state === 'working').slice(0, MAX_HISTORIES)) {
+    try {
+      const res = await $.http.fetch(`${CLOUD_URL}/${encodeURIComponent(s.id)}/events?limit=80&sort_order=desc`, init)
+      if (!res.ok) continue
+      const read = cloudAgents(parseRows(res.text), t)
+      s.agents = read.agents
+      s.activity = read.activity
+      if (read.doing) s.doing = read.doing
+    } catch {
+      // The session still shows, without its agents.
+    }
+  }
+
+  return { fetchedAt: t, sessions }
+}
+
+async function refreshCloud($: EngineInterface, force = false) {
+  if (!windowOn || cloudBusy) return
+  const t = await $.clock.now()
+  if (!force && t - lastCloudTry < CLOUD_MS) return
+  lastCloudTry = t
+  const file = `${await deckDir($)}/deck-data.js`
+  const before = await readFile($, file)
+  if (!force && before.cloud && t - before.cloud.fetchedAt < CLOUD_MS) return
+  cloudBusy = true
+  try {
+    let cloud: CloudBlock
+    try {
+      cloud = await fetchCloud($, t, before.cloud)
+    } catch (err) {
+      cloud = { fetchedAt: t, error: `Could not reach claude.ai: ${err instanceof Error ? err.message : String(err)}`, sessions: before.cloud?.sessions ?? [] }
+    }
+    const latest = await readFile($, file)
+    await $.fs.write(file, encode(latest.sessions, cloud))
+  } finally {
+    cloudBusy = false
+  }
 }
 
 /** Copies the page out, starts feeding it and opens it as its own window. */
@@ -167,6 +239,7 @@ async function popOut($: EngineInterface): Promise<{ isOpened: boolean; path: st
   windowOn = true
   await $.store.set(WINDOW_KEY, true)
   await publish($, true)
+  void refreshCloud($, true).catch(() => undefined)
   const os = await detectOs($)
   for (const argv of openCommands(os, path)) {
     try {

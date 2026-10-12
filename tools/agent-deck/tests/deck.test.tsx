@@ -2,9 +2,10 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import type { AgentInfo } from 'claude-code'
 
 import type { DeckAgent } from '../types'
-import { reconcile } from '../hooks/register'
+import { cloudAgents, cloudSession, cloudSessions, cloudState } from '../hooks/cloud'
+import { fetchCloud, reconcile } from '../hooks/register'
 import { buildScene, describeCall, estimate, nextSteps } from '../hooks/scene'
-import { decode, encode, fileUrl, merge, openCommands, sessionEntry } from '../hooks/window'
+import { decode, decodeFile, encode, fileUrl, merge, openCommands, sessionEntry } from '../hooks/window'
 
 const PANE = {
   component: 'Pane',
@@ -242,4 +243,126 @@ describe('the pop-out window', () => {
     expect(fileUrl('/Users/yoshi/My Deck/index.html')).toBe('file:///Users/yoshi/My%20Deck/index.html')
     expect(openCommands('linux', '/home/y/index.html')).toEqual([['xdg-open', '/home/y/index.html']])
   })
+})
+
+describe('cloud sessions', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    id: 'session_1',
+    title: 'Port the mixer',
+    status: 'idle',
+    worker_status: 'running',
+    environment_kind: 'anthropic_cloud',
+    connection_status: 'connected',
+    created_at: '2026-10-12T05:00:00Z',
+    last_event_at: '2026-10-12T06:00:00Z',
+    config: { sources: [{ type: 'git_repository', url: 'https://github.com/someone/mixer' }] },
+    ...over,
+  })
+
+  test('are read the way Claude Code reads them', async () => {
+    expect(cloudState(row())).toBe('working')
+    expect(cloudState(row({ worker_status: 'requires_action' }))).toBe('blocked')
+    expect(cloudState(row({ connection_status: 'disconnected' }))).toBe('stopped')
+    expect(cloudState(row({ worker_status: 'idle', status_bucket: 'blocked' }))).toBe('blocked')
+    expect(cloudState(row({ worker_status: 'idle', status_bucket: 'SESSION_STATUS_BUCKET_FAILED' }))).toBe('failed')
+    expect(cloudState(row({ worker_status: 'idle' }))).toBe('done')
+    expect(cloudState(row({ status: 'archived' }))).toBe('archived')
+  })
+
+  test('a row says where it runs, its project and what it needs', async () => {
+    const local = cloudSession(row({
+      environment_kind: 'bridge',
+      connection_status: 'disconnected',
+      worker_status: 'idle',
+      status_bucket: 'blocked',
+      config: {},
+      external_metadata: {
+        current_branches: { 'someone/licence-server': 'master' },
+        worktree_state: { 'someone/licence-server': {} },
+        post_turn_summary: { needs_action: 'Pick a price' },
+      },
+    }))
+    expect(local).toMatchObject({ place: 'local', offline: true, state: 'blocked', repo: 'licence-server', branch: 'master', needs: 'Pick a price' })
+    expect(cloudSession(row())?.repo).toBe('mixer')
+    const listed = cloudSessions(JSON.stringify({ data: [row(), row({ id: 'session_2', status: 'archived' })] }))
+    expect(listed.map(x => x.id)).toEqual(['session_1'])
+    expect(cloudSessions('not json')).toEqual([])
+  })
+
+  test('agents come from the history: who they are, what they did last, how they ended', async () => {
+    const at = (s: number) => new Date(1_000_000 + s * 1000).toISOString()
+    const ev = (s: number, payload: Record<string, unknown>) => ({ created_at: at(s), payload })
+    const use = (id: string, name: string, input: Record<string, unknown>, parent: string | null = null) => ({
+      type: 'assistant',
+      parent_tool_use_id: parent,
+      message: { content: [{ type: 'tool_use', id, name, input }] },
+    })
+    // Newest first, as the events route answers with sort_order=desc.
+    const events = [
+      ev(50, use('t9', 'Bash', { description: 'Run the audio tests' })),
+      ev(40, use('t4', 'Write', { file_path: '/r/test/gain.test.ts' }, 'ag2')),
+      ev(30, { type: 'system', subtype: 'task_notification', task_id: 'k1', tool_use_id: 'ag1', status: 'completed' }),
+      ev(20, use('t3', 'Grep', { pattern: 'AudioContext' }, 'ag1')),
+      ev(12, use('ag2', 'Agent', { description: 'Write gain tests', subagent_type: 'general-purpose' })),
+      ev(10, use('ag1', 'Agent', { description: 'Measure latency', subagent_type: 'Explore' })),
+    ]
+    const read = cloudAgents(events, 1_000_000 + 60_000)
+    expect(read.doing).toBe('Run the audio tests')
+    expect(read.agents.map(a => [a.description, a.type, a.status, a.action])).toEqual([
+      ['Write gain tests', 'general-purpose', 'running', 'Writing gain.test.ts'],
+      ['Measure latency', 'Explore', 'done', 'Searching for "AudioContext"'],
+    ])
+    expect(read.activity).toHaveLength(6)
+  })
+
+  test('the data file keeps the cloud list when a session writes its own entry', async () => {
+    const cloud = { fetchedAt: 5, sessions: [{ id: 'session_1', title: 'x', place: 'cloud' as const, offline: false, state: 'done' as const, updatedAt: 1, createdAt: 1 }] }
+    const file = decodeFile(encode({}, cloud))
+    expect(file.cloud?.sessions.map(x => x.id)).toEqual(['session_1'])
+    expect(decodeFile(encode({})).cloud).toBeUndefined()
+  })
+})
+
+type Fetch = (url: string, init?: { auth?: string }) => { status: number; ok: boolean; headers: Record<string, string>; text: string }
+const engine = (authorized: boolean, fetch: Fetch) => ({
+  session: { authorize: async () => (authorized ? { handle: 'h1', kind: 'bearer' as const } : null) },
+  http: { fetch: async (url: string, init?: { auth?: string }) => fetch(url, init) },
+})
+
+test('the cloud list is fetched as the signed-in person, histories only for working sessions', async () => {
+  const asked: string[] = []
+  const $ = engine(true, (url, init) => {
+    asked.push(url)
+    expect(init?.auth).toBe('h1')
+    const body = url.includes('/events')
+      ? { data: [{ created_at: new Date(1_000_000).toISOString(), payload: { type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'tool_use', id: 'a1', name: 'Agent', input: { description: 'Check the build' } }] } } }] }
+      : {
+          data: [
+            { id: 'session_w', title: 'Working one', worker_status: 'running', created_at: '2026-10-12T05:00:00Z' },
+            { id: 'session_i', title: 'Idle one', worker_status: 'idle', status_bucket: 'completed', created_at: '2026-10-12T05:00:00Z' },
+          ],
+        }
+    return { status: 200, ok: true, headers: {}, text: JSON.stringify(body) }
+  })
+  const cloud = await fetchCloud($, 1_000_000 + 10_000, undefined)
+  expect(cloud.error).toBeUndefined()
+  expect(cloud.sessions.map(s => [s.id, s.state, s.agents?.map(a => a.description)])).toEqual([
+    ['session_w', 'working', ['Check the build']],
+    ['session_i', 'done', undefined],
+  ])
+  expect(asked).toEqual([
+    'https://api.anthropic.com/v1/code/sessions?limit=100',
+    'https://api.anthropic.com/v1/code/sessions/session_w/events?limit=80&sort_order=desc',
+  ])
+})
+
+test('a refused cloud list keeps the last one and says why', async () => {
+  const refused = engine(true, () => ({ status: 401, ok: false, headers: {}, text: '' }))
+  const prev = { fetchedAt: 1, sessions: [{ id: 'session_1', title: 'x', place: 'cloud' as const, offline: false, state: 'done' as const, updatedAt: 1, createdAt: 1 }] }
+  const cloud = await fetchCloud(refused, 2, prev)
+  expect(cloud.error).toContain('/login')
+  expect(cloud.sessions).toHaveLength(1)
+
+  expect((await fetchCloud(engine(false, refused.http.fetch as never), 3, prev)).error).toContain('not signed in')
+  expect((await fetchCloud({ session: {}, http: {} } as never, 4, prev)).error).toContain('Update Claude Code')
 })

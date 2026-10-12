@@ -4,609 +4,801 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
+/* Layout: one-screen instrument panel. Header bar, the live stage (Orbit, Board or Lanes) on the left, a detail rail on the right. */
+:root {
+  --bg: #0c0f13;
+  --panel: #12161c;
+  --raise: #191e26;
+  --line: #242b35;
+  --fg: #e7ecf2;
+  --dim: #8d99a7;
+  --faint: #5b6674;
+  --accent: #8fb3ff;
+  --work: #3dd6c3;
+  --wait: #f4b54a;
+  --done: #7ccf8c;
+  --fail: #f07262;
+  --idle: #6f7d8e;
+  --display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --body: "Figtree", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #05070f;
-    --panel: rgba(9, 14, 30, 0.8);
-    --line: rgba(120, 150, 230, 0.16);
-    --text: #e6ecff;
-    --dim: #8f9cc4;
-    --cyan: #37d7ff;
-    --green: #3ddc84;
-    --red: #ff5c7a;
-    --grey: #9aa4b2;
-    --amber: #f5b14c;
-    --violet: #b48cff;
+    --bg: #edf0f4; --panel: #ffffff; --raise: #f4f6f9; --line: #d8dee6; --fg: #121820; --dim: #556170; --faint: #8994a2;
+    --accent: #2d5bd7; --work: #0a9886; --wait: #b4760a; --done: #2d8a45; --fail: #c7422e; --idle: #7b8898;
+    color-scheme: light;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  #stage, #labels { position: fixed; inset: 0; }
-  #labels { pointer-events: none; }
-  .hud { position: fixed; top: 18px; left: 24px; pointer-events: none; z-index: 2; }
-  .hud h1 { margin: 0; font-size: 19px; letter-spacing: 0.22em; font-weight: 700; }
-  .hud .sub { color: var(--dim); margin-top: 4px; font-size: 14px; }
-  .bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 3; }
-  .bar button { background: rgba(20, 30, 60, 0.75); color: var(--text); border: 1px solid var(--line); border-radius: 9px;
-    padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
-  .bar button:hover { border-color: rgba(120, 150, 230, 0.55); }
-  .bar button kbd { color: var(--dim); font: inherit; margin-left: 6px; }
-  #panel { position: fixed; top: 62px; right: 16px; bottom: 44px; width: min(430px, 36vw); overflow: auto; z-index: 2;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(10px); }
-  body.nopanel #panel { display: none; }
-  .sess + .sess { margin-top: 22px; }
-  .sess h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 600;
-    display: flex; justify-content: space-between; gap: 8px; }
-  .sess h2 .main { text-transform: none; letter-spacing: 0; font-weight: 500; }
-  .sess h2 .main.on { color: var(--violet); }
-  .group { margin: 10px 0 2px; font-size: 12px; color: var(--dim); }
-  .ag { padding: 9px 0 8px; border-top: 1px solid var(--line); }
-  .ag .t { font-weight: 600; display: flex; gap: 7px; align-items: baseline; }
-  .ag .t .n { color: var(--cyan); font-variant-numeric: tabular-nums; }
-  .ag .t .ty { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: auto; white-space: nowrap; }
-  .ag .now { margin-top: 2px; }
-  .ag .meta { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .ag.idle .t .n { color: var(--amber); }
-  .prog { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; margin-top: 7px; overflow: hidden; position: relative; }
-  .prog i { position: absolute; inset: 0 auto 0 0; background: var(--cyan); border-radius: 2px; transition: width 0.8s ease; }
-  .prog.unknown i { width: 28%; animation: slide 1.8s ease-in-out infinite; }
-  @keyframes slide { 0% { left: -28%; } 100% { left: 100%; } }
-  .fin { display: flex; gap: 8px; font-size: 13px; color: var(--dim); padding: 3px 0; }
-  .fin .m { width: 1em; text-align: center; }
-  .fin.done .m { color: var(--green); } .fin.failed .m { color: var(--red); } .fin.stopped .m { color: var(--grey); }
-  .types { color: var(--dim); font-size: 12.5px; }
-  .empty { color: var(--dim); }
-  #status { position: fixed; left: 24px; bottom: 16px; color: var(--dim); font-size: 12px; z-index: 2; }
-  #status.warn { color: var(--amber); }
-  #note { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); max-width: 520px; text-align: center; color: var(--dim);
-    font-size: 15px; z-index: 1; display: none; }
+}
 
-  /* Labels that float over the 3D scene. */
-  .lbl { font-family: inherit; white-space: nowrap; text-align: center; text-shadow: 0 1px 3px #000, 0 0 10px #000; transform: translateY(-50%); }
-  .lbl.tower .n { font-size: 21px; font-weight: 700; color: var(--cyan); }
-  .lbl.tower.idle .n { color: var(--amber); }
-  .lbl.tower .d { font-size: 16px; font-weight: 600; color: #f0f8ff; }
-  .lbl.tower .a { font-size: 13px; color: #cfe6ff; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
-  .lbl.tower .m { font-size: 12px; color: var(--dim); }
-  .lbl.hub { font-size: 14px; color: #c9b3ff; }
-  .lbl.hub.off { color: #9aa0bf; }
-  .lbl.small { font-size: 12px; color: #aab4d4; }
-  .lbl.fin.done { color: var(--green); } .lbl.fin.failed { color: var(--red); } .lbl.fin.stopped { color: var(--grey); }
-  .lbl.sname { font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #9fb4ff; font-weight: 600; }
-  @media (prefers-reduced-motion: reduce) { .prog.unknown i { animation: none; left: 0; } }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; padding-inline: 16px; padding-block: 14px; }
+
+/* Header */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 1.05rem; letter-spacing: .2em; text-transform: uppercase; }
+.brand p { margin: 2px 0 0; color: var(--dim); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.brand .warn { color: var(--wait); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button, .btn { border: 0; background: transparent; color: var(--dim); padding: 7px 12px; font-size: .8rem; font-weight: 500; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover, .btn:hover { color: var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--raise); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.btn { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.k { font-family: var(--mono); font-size: .68rem; color: var(--faint); }
+
+/* Notice */
+.notice { grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .86rem; }
+.notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
+
+/* Stage + rail */
+.main { grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; min-height: 0; }
+body.norail .main { grid-template-columns: minmax(0, 1fr); }
+body.norail .rail { display: none; }
+.stage { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--accent) 7%, var(--panel)) 0%, var(--panel) 62%); }
+#orbit { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pane { position: absolute; inset: 0; overflow: auto; padding: 16px; }
+.rail { min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 64vh; min-height: 420px; }
+}
+
+/* Shared bits */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; flex: none; }
+.shape { width: 10px; height: 10px; background: currentColor; display: inline-block; flex: none; }
+.shape.cloud { border-radius: 50%; }
+.shape.local { border-radius: 2px; }
+.shape.hollow { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.t-work { color: var(--work); } .t-wait { color: var(--wait); } .t-fail { color: var(--fail); } .t-done { color: var(--done); } .t-idle { color: var(--idle); }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.tag { font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: .74rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.eyebrow { margin: 0; font-family: var(--display); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.empty { color: var(--faint); font-size: .86rem; margin: 0; }
+
+/* Board */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; align-items: start; }
+.col { display: grid; gap: 10px; min-width: 0; }
+.col-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.col-head .mono { margin-left: auto; }
+.card { width: 100%; text-align: left; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 7px; cursor: pointer; min-width: 0; }
+.card:hover { border-color: var(--faint); }
+.card.sel { border-color: var(--accent); }
+.card-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-top .mono { margin-left: auto; }
+.card-title { font-weight: 600; font-size: .95rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line { font-size: .84rem; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line.needs { color: var(--wait); }
+.agents { display: grid; gap: 5px; margin: 0; padding: 8px 0 0; list-style: none; border-top: 1px dashed var(--line); }
+.agents li { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: .8rem; }
+.agents li .dot { transform: translateY(-1px); }
+.agents .what { color: var(--dim); }
+
+/* Lanes */
+.lanes { display: grid; min-width: 0; }
+.lanes-head, .lane { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; align-items: center; }
+.lanes-head { position: sticky; top: -16px; background: var(--panel); padding: 0 0 8px; z-index: 1; }
+.axis { position: relative; height: 16px; }
+.axis span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--mono); font-size: .66rem; color: var(--faint); white-space: nowrap; }
+.axis span:last-child { transform: translateX(-100%); }
+.axis span:first-child { transform: none; }
+.lane { width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 10px 0; cursor: pointer; }
+.lane:hover .lane-name { text-decoration: underline; text-decoration-color: var(--faint); }
+.lane.sel .lane-name { color: var(--accent); }
+.lane-label { display: grid; gap: 3px; min-width: 0; }
+.lane-name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.track { position: relative; height: 54px; border-radius: 6px; background-color: var(--raise);
+  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: 25% 100%; }
+.tick { position: absolute; top: 6px; width: 2px; height: 10px; border-radius: 1px; background: var(--faint); }
+.tick.hot { background: var(--work); }
+.run { position: absolute; height: 13px; border-radius: 3px; font-family: var(--mono); font-size: .62rem; line-height: 13px; padding: 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--fg); }
+.run.live { background: color-mix(in srgb, var(--work) 30%, transparent); box-shadow: inset 0 0 0 1px var(--work); }
+.run.end { background: color-mix(in srgb, var(--done) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--done) 60%, transparent); color: var(--dim); }
+.run.bad { background: color-mix(in srgb, var(--fail) 20%, transparent); box-shadow: inset 0 0 0 1px var(--fail); }
+.mark { position: absolute; top: 4px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg); background: var(--dim); }
+.nowcap { position: absolute; right: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 6px 6px 0; background: var(--work); }
+.track .when { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+@media (max-width: 640px) {
+  .lanes-head, .lane { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .lanes-head .spacer { display: none; }
+}
+
+/* Rail */
+.rail section { display: grid; gap: 10px; }
+.row { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 7px 8px; margin: 0 -8px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; cursor: pointer; }
+.row:hover { background: var(--raise); }
+.row .sub { grid-column: 2 / 4; font-size: .8rem; color: var(--wait); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 600; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line); }
+.detail-title { margin: 0; font-size: 1.15rem; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+dl { margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 7px 12px; font-size: .86rem; }
+dt { color: var(--faint); }
+dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+dd.needs { color: var(--wait); }
+.open { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; text-decoration: none; font-weight: 600; font-size: .86rem; }
+.open:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; font-size: .8rem; color: var(--dim); margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.keys { font-size: .78rem; color: var(--faint); margin: 0; }
+.keys .k { color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 </style>
 </head>
 <body>
-<div id="stage"></div>
-<div id="labels"></div>
-<div class="hud"><h1>AGENT DECK</h1><div class="sub" id="sub">Waiting for data…</div></div>
-<div class="bar">
-  <button id="bRotate" title="Turn the camera by itself">Auto-turn<kbd>R</kbd></button>
-  <button id="bPanel" title="Show or hide the list">List<kbd>L</kbd></button>
-  <button id="bFull" title="Fill the screen">Fullscreen<kbd>F</kbd></button>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Agent Deck</h1>
+      <p id="summary">Waiting for data…</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="views" role="group" aria-label="Layout">
+        <button id="view-orbit" data-view="orbit" aria-pressed="true">Orbit <span class="k">1</span></button>
+        <button id="view-board" data-view="board" aria-pressed="false">Board <span class="k">2</span></button>
+        <button id="view-lanes" data-view="lanes" aria-pressed="false">Lanes <span class="k">3</span></button>
+      </div>
+      <div class="seg" id="ranges" role="group" aria-label="Time range">
+        <button id="range-day" data-range="day" aria-pressed="true">Today</button>
+        <button id="range-week" data-range="week" aria-pressed="false">This week</button>
+      </div>
+      <button class="btn" id="list" title="Show or hide the list (L)">List <span class="k">L</span></button>
+      <button class="btn" id="full" title="Fill the screen (F)">Fullscreen <span class="k">F</span></button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="main">
+    <section class="stage" aria-label="Sessions">
+      <canvas id="orbit" aria-label="Orbit view of your sessions"></canvas>
+      <div class="pane" id="board" hidden></div>
+      <div class="pane" id="lanes" hidden></div>
+    </section>
+    <aside class="rail" id="rail" aria-live="polite"></aside>
+  </div>
 </div>
-<div id="panel"></div>
-<div id="note"></div>
-<div id="status">Connecting…</div>
 
 <script>
-// Data and the list. The Claude sessions write deck-data.js next to this page; it is read again every
-// second. Plain script, so the list keeps working even when the 3D part cannot load.
+// The Claude sessions with the deck write deck-data.js next to this page; it is read again every second.
+// `sessions` is each open local session's own entry (its agents, live). `cloud` is the account's session list
+// from claude.ai, fetched by one of them every 20 seconds: cloud sessions, and local ones connected to claude.ai.
 (() => {
-  const STALE_MS = 45000
-  const state = { data: null, receivedAt: 0 }
-  window.__deck = state
+  'use strict'
 
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-  const fmt = ms => {
-    const s = Math.max(0, Math.round(ms / 1000))
-    if (s < 60) return `${s}s`
-    const m = Math.floor(s / 60)
-    if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`
-    return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
-  }
-  window.__deckFmt = fmt
-  window.__deckEsc = esc
+  const VIEWS = ['orbit', 'board', 'lanes']
+  const RANGE_MS = { day: 24 * 3600e3, week: 7 * 24 * 3600e3 }
+  const LANE_MS = 60 * 60e3
+  const LOCAL_STALE_MS = 60e3
 
-  function liveSessions() {
-    const all = Object.values(state.data?.sessions ?? {})
-    return all.filter(s => Date.now() - s.updatedAt < STALE_MS).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-  }
-  window.__deckSessions = liveSessions
-
-  function render() {
-    const sessions = liveSessions()
-    const now = Date.now()
-    let working = 0
-    let finished = 0
-    const html = sessions.map(s => {
-      const live = s.agents.filter(a => a.status === 'running' || a.status === 'idle')
-      const done = s.agents.filter(a => !(a.status === 'running' || a.status === 'idle'))
-      working += live.length
-      finished += done.length
-      const rows = live.map(a => {
-        const elapsed = a.startedAt ? `${fmt(now - a.startedAt)} so far` : 'running since before the deck loaded'
-        const known = typeof a.est?.fraction === 'number'
-        const bar = known
-          ? `<div class="prog"><i style="width:${Math.round(Math.min(1, a.est.fraction) * 100)}%"></i></div>`
-          : `<div class="prog unknown"><i></i></div>`
-        return `<div class="ag ${a.status}">
-          <div class="t"><span class="n">#${a.n}</span><span>${esc(a.description)}</span><span class="ty">${esc(a.type)}</span></div>
-          <div class="now">${a.status === 'idle' ? 'Waiting for a message' : esc(a.action || 'Starting up')}</div>
-          <div class="meta">${elapsed} · ${esc(a.est?.text ?? '')} · ${a.tools} tool calls</div>${bar}</div>`
-      }).join('')
-      const fins = done.map(a => {
-        const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
-        const took = a.startedAt && a.endedAt ? ` · ${fmt(a.endedAt - a.startedAt)}` : ''
-        return `<div class="fin ${a.status}"><span class="m">${mark}</span><span>${esc(a.description)}${took}</span></div>`
-      }).join('')
-      const main = s.main.isWorking ? `Working${s.main.action ? `: ${esc(s.main.action)}` : ''}` : 'Waiting for you'
-      return `<div class="sess">
-        <h2><span>${esc(s.name)}</span><span class="main ${s.main.isWorking ? 'on' : ''}">${main}</span></h2>
-        ${rows || '<div class="empty">No agents working.</div>'}
-        ${fins ? `<div class="group">Finished</div>${fins}` : ''}
-        <div class="group">Ready to start</div><div class="types">${s.types.map(esc).join(' · ') || 'Listed after the session’s first turn.'}</div>
-      </div>`
-    }).join('')
-
-    document.getElementById('panel').innerHTML =
-      html || '<div class="empty">No Claude session is sending to this window. In a session, press <b>Pop out</b> on the Agent deck pane or type <b>/agent-deck-window</b>.</div>'
-    document.getElementById('sub').textContent =
-      `${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${working} working · ${finished} finished`
-
-    const age = now - state.receivedAt
-    const status = document.getElementById('status')
-    status.className = state.receivedAt && age < 5000 ? '' : 'warn'
-    status.textContent = !state.receivedAt
-      ? 'No data yet: open it from a Claude session (Pop out, or /agent-deck-window).'
-      : age < 5000 ? `Live · ${new Date().toLocaleTimeString()}` : `No update for ${fmt(age)}. Is a session still open?`
-
-    window.__deckScene?.update(sessions)
+  const store = {
+    get(k) { try { return localStorage.getItem(k) } catch { return null } },
+    set(k, v) { try { localStorage.setItem(k, v) } catch { /* a convenience only */ } },
   }
 
-  window.__deckData = d => {
-    state.data = d
-    state.receivedAt = Date.now()
+  const S = {
+    data: null,
+    receivedAt: 0,
+    view: VIEWS.includes(store.get('deck.view')) ? store.get('deck.view') : 'orbit',
+    range: store.get('deck.range') === 'week' ? 'week' : 'day',
+    selected: null,
+    localTicks: new Map(),
+  }
+  if (store.get('deck.norail') === '1') document.body.classList.add('norail')
+
+  // ---------- helpers ----------
+  const $ = id => document.getElementById(id)
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag)
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue
+      if (k === 'class') el.className = v
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v)
+      else el.setAttribute(k, v === true ? '' : String(v))
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid === undefined || kid === null || kid === false) continue
+      el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)))
+    }
+    return el
+  }
+  const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+  const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's')
+  function ago(t, now = Date.now()) {
+    if (!t) return '—'
+    const s = Math.max(0, Math.round((now - t) / 1000))
+    if (s < 10) return 'just now'
+    if (s < 60) return s + 's ago'
+    const m = Math.round(s / 60)
+    if (m < 60) return m + 'm ago'
+    const hr = Math.round(m / 60)
+    if (hr < 48) return hr + 'h ago'
+    return Math.round(hr / 24) + 'd ago'
+  }
+  function span(ms) {
+    const m = Math.max(0, Math.round(ms / 60e3))
+    if (m < 1) return 'under a minute'
+    if (m < 60) return m + 'm'
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'
   }
 
+  // ---------- one list from local entries and the cloud list ----------
+  const LABEL = { working: 'Working', blocked: 'Waiting for you', failed: 'Stopped with an error', done: 'Finished its turn', stopped: 'Stopped', idle: 'Open, ready for your next message' }
+  const TONE = { working: 'work', blocked: 'wait', failed: 'fail', done: 'done', stopped: 'idle', idle: 'idle' }
+  const group = st => st === 'working' ? 'work' : (st === 'blocked' || st === 'failed') ? 'wait' : 'recent'
+  const isLive = a => a.status === 'running' || a.status === 'idle'
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+  function sessions(now = Date.now()) {
+    const d = S.data || {}
+    const cloud = (d.cloud && Array.isArray(d.cloud.sessions)) ? d.cloud.sessions : []
+    const used = new Set()
+    const out = []
+
+    for (const e of Object.values(d.sessions || {})) {
+      if (!e || now - (e.updatedAt || 0) > LOCAL_STALE_MS) continue
+      const agents = e.agents || []
+      const working = !!(e.main && e.main.isWorking) || agents.some(a => a.status === 'running')
+      // The same session as claude.ai lists it, when it is connected there: same folder or repository.
+      const twin = cloud.find(c => !used.has(c.id) && c.place === 'local' && c.repo && norm(c.repo) === norm(e.name) && now - c.updatedAt < RANGE_MS.day)
+      if (twin) used.add(twin.id)
+      const status = working ? 'working' : twin && (twin.state === 'blocked' || twin.state === 'failed') ? twin.state : 'idle'
+      out.push({
+        key: 'local:' + e.id,
+        title: twin ? twin.title : e.name,
+        place: 'local', offline: false, fromPlugin: true,
+        status,
+        repo: twin ? twin.repo : e.name,
+        branch: twin ? twin.branch : undefined,
+        updatedAt: e.updatedAt,
+        createdAt: twin ? twin.createdAt : 0,
+        needs: twin ? twin.needs : undefined,
+        detail: twin ? twin.detail : undefined,
+        doing: e.main && e.main.action,
+        agents,
+        types: e.types || [],
+        cloudId: twin ? twin.id : undefined,
+        activity: S.localTicks.get(e.id) || [],
+      })
+    }
+
+    for (const c of cloud) {
+      if (used.has(c.id)) continue
+      out.push({
+        key: 'cloud:' + c.id,
+        title: c.title,
+        place: c.place, offline: !!c.offline, fromPlugin: false,
+        status: c.state,
+        repo: c.repo, branch: c.branch,
+        updatedAt: c.updatedAt, createdAt: c.createdAt,
+        needs: c.needs, detail: c.detail, doing: c.doing,
+        agents: c.agents || [],
+        types: [],
+        cloudId: c.id,
+        activity: c.activity || [],
+      })
+    }
+
+    const rank = { work: 0, wait: 1, recent: 2 }
+    return out
+      .filter(s => s.fromPlugin || s.status === 'working' || now - s.updatedAt <= RANGE_MS[S.range])
+      .sort((a, b) => rank[group(a.status)] - rank[group(b.status)] || b.updatedAt - a.updatedAt)
+  }
+
+  const agentsOf = s => ({
+    running: s.agents.filter(isLive),
+    finished: s.agents.filter(a => !isLive(a)).slice(0, 6),
+  })
+
+  // A local session's own activity: noted while it works, for the Lanes view.
+  function noteLocalActivity(now) {
+    for (const e of Object.values((S.data && S.data.sessions) || {})) {
+      if (!e || !e.main || !e.main.isWorking) continue
+      const ticks = S.localTicks.get(e.id) || []
+      if (!ticks.length || now - ticks[ticks.length - 1] > 15e3) ticks.push(now)
+      while (ticks.length && now - ticks[0] > LANE_MS) ticks.shift()
+      S.localTicks.set(e.id, ticks)
+    }
+  }
+
+  // ---------- data file ----------
+  window.__deckData = d => { S.data = d; S.receivedAt = Date.now() }
   function poll() {
     const s = document.createElement('script')
-    s.src = `deck-data.js?t=${Date.now()}`
+    s.src = 'deck-data.js?t=' + Date.now()
     s.onload = s.onerror = () => s.remove()
     document.head.appendChild(s)
   }
-  poll()
-  setInterval(() => { poll(); render() }, 1000)
-  render()
 
-  const toggleFull = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
-  const togglePanel = () => { document.body.classList.toggle('nopanel'); window.__deckScene?.resize() }
-  const toggleRotate = () => window.__deckScene?.toggleRotate()
-  document.getElementById('bFull').onclick = toggleFull
-  document.getElementById('bPanel').onclick = togglePanel
-  document.getElementById('bRotate').onclick = toggleRotate
-  addEventListener('keydown', e => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
-    const k = e.key.toLowerCase()
-    if (k === 'f') toggleFull()
-    else if (k === 'l') togglePanel()
-    else if (k === 'r') toggleRotate()
-  })
-
-  setTimeout(() => {
-    if (window.__deckScene) return
-    const note = document.getElementById('note')
-    note.style.display = 'block'
-    note.textContent = 'The 3D view could not load (it fetches three.js from the internet the first time). The list on the right still updates.'
-  }, 8000)
-})()
-</script>
-
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
-<script type="module">
-import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
-
-const fmt = window.__deckFmt
-const esc = window.__deckEsc
-const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
-
-const COLOR = {
-  running: 0x37d7ff, idle: 0xf5b14c, done: 0x3ddc84, failed: 0xff5c7a, stopped: 0x9aa4b2,
-  type: 0x7b86a6, main: 0xb48cff, mainOff: 0x5d6280, rim: 0x3a7bff,
-}
-const STAGE = 7.4
-const TOWER = 3.1
-const SPACING = 17.5
-
-// --- Renderer, camera, light ------------------------------------------------
-const stage = document.getElementById('stage')
-const renderer = new THREE.WebGLRenderer({ antialias: true })
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
-renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.05
-stage.appendChild(renderer.domElement)
-
-const labels = new CSS2DRenderer({ element: document.getElementById('labels') })
-
-const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x05070f)
-scene.fog = new THREE.FogExp2(0x05070f, 0.012)
-
-const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600)
-camera.position.set(17, 14, 20)
-const controls = new OrbitControls(camera, renderer.domElement)
-controls.enableDamping = true
-controls.autoRotate = !calm
-controls.autoRotateSpeed = 0.45
-controls.maxPolarAngle = Math.PI * 0.47
-controls.minDistance = 6
-controls.maxDistance = 160
-let resumeTimer = 0
-let rotateWanted = controls.autoRotate
-controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(resumeTimer) })
-controls.addEventListener('end', () => { resumeTimer = setTimeout(() => { controls.autoRotate = rotateWanted }, 8000) })
-
-scene.add(new THREE.HemisphereLight(0x9bb8ff, 0x0a0c18, 0.7))
-const sun = new THREE.DirectionalLight(0xffffff, 1.3)
-sun.position.set(-10, 18, 8)
-scene.add(sun)
-
-const grid = new THREE.GridHelper(600, 300, 0x1a2550, 0x0d1430)
-grid.material.transparent = true
-grid.material.opacity = 0.35
-grid.position.y = -0.52
-scene.add(grid)
-
-const composer = new EffectComposer(renderer)
-composer.addPass(new RenderPass(scene, camera))
-const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.5, 0.22)
-composer.addPass(bloom)
-composer.addPass(new OutputPass())
-
-// --- Shared pieces ----------------------------------------------------------
-const boxGeo = new THREE.BoxGeometry(1, 1, 1)
-const fillGeo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
-const edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0))
-const arcGeo = new THREE.RingGeometry(0.98, 1.1, 48, 1, 0, Math.PI * 1.5).rotateX(-Math.PI / 2)
-
-function label(html, cls) {
-  const el = document.createElement('div')
-  el.className = `lbl ${cls}`
-  el.innerHTML = html
-  return new CSS2DObject(el)
-}
-
-function dropLabels(obj) {
-  obj.traverse(o => { if (o.isCSS2DObject) o.element.remove() })
-}
-
-function disposeTree(obj) {
-  dropLabels(obj)
-  obj.traverse(o => {
-    if (o.material && !o.userData.sharedMaterial) o.material.dispose()
-  })
-}
-
-function ringPositions(count, radius, offset) {
-  if (count === 1 && radius < 4) return [[0, radius]]
-  return Array.from({ length: count }, (_, i) => {
-    const a = offset + (i / count) * Math.PI * 2
-    return [Math.cos(a) * radius, Math.sin(a) * radius]
-  })
-}
-
-const easeTo = (cur, target, dt, rate = 4) => cur + (target - cur) * (1 - Math.exp(-rate * dt))
-
-// --- One agent's tower ------------------------------------------------------
-class Tower {
-  constructor() {
-    this.group = new THREE.Group()
-    this.color = new THREE.Color(COLOR.running)
-
-    const base = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: 0x1b2747, roughness: 0.6, metalness: 0.3 }))
-    base.scale.set(1.3, 0.14, 1.3)
-    base.position.y = 0.07
-    this.group.add(base)
-
-    this.fillMat = new THREE.MeshStandardMaterial({ color: COLOR.running, emissive: COLOR.running, emissiveIntensity: 0.9,
-      roughness: 0.35, metalness: 0.1, transparent: true, opacity: 0.95 })
-    this.fill = new THREE.Mesh(fillGeo, this.fillMat)
-    this.fill.scale.set(0.82, 0.01, 0.82)
-    this.fill.position.y = 0.14
-    this.group.add(this.fill)
-
-    const glass = new THREE.Mesh(fillGeo, new THREE.MeshStandardMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.08,
-      roughness: 0.1, metalness: 0.2, depthWrite: false }))
-    glass.scale.set(1.04, TOWER, 1.04)
-    glass.position.y = 0.14
-    this.group.add(glass)
-    this.edgeMat = new THREE.LineBasicMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0.55 })
-    const edges = new THREE.LineSegments(edgesGeo, this.edgeMat)
-    edges.scale.copy(glass.scale)
-    edges.position.y = 0.14
-    this.group.add(edges)
-
-    this.arcMat = new THREE.MeshBasicMaterial({ color: COLOR.running, transparent: true, opacity: 0.85, side: THREE.DoubleSide })
-    this.arc = new THREE.Mesh(arcGeo, this.arcMat)
-    this.arc.position.y = 0.02
-    this.group.add(this.arc)
-
-    this.beamMat = new THREE.MeshBasicMaterial({ color: COLOR.running, transparent: true, opacity: 0.4 })
-    this.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 8), this.beamMat)
-    this.beam.position.y = TOWER + 0.14 + 0.7
-    this.group.add(this.beam)
-
-    this.tag = label('', 'tower')
-    this.tag.position.y = TOWER + 1.7
-    this.group.add(this.tag)
-
-    this.height = 0.01
-    this.target = 0.01
-    this.known = true
-    this.phase = Math.random() * Math.PI * 2
-    this.group.scale.setScalar(0.01)
+  // ---------- header, notice, rail ----------
+  function render() {
+    const now = Date.now()
+    noteLocalActivity(now)
+    for (const v of VIEWS) $('view-' + v).setAttribute('aria-pressed', String(S.view === v))
+    $('range-day').setAttribute('aria-pressed', String(S.range === 'day'))
+    $('range-week').setAttribute('aria-pressed', String(S.range === 'week'))
+    $('board').hidden = S.view !== 'board'
+    $('lanes').hidden = S.view !== 'lanes'
+    $('orbit').hidden = S.view !== 'orbit'
+    const list = sessions(now)
+    if (S.selected && !list.some(s => s.key === S.selected)) S.selected = null
+    renderSummary(list, now)
+    renderNotice(now)
+    if (S.view === 'board') renderBoard(list, now)
+    if (S.view === 'lanes') renderLanes(list, now)
+    if (S.view === 'orbit') ensureOrbit()
+    renderRail(list, now)
   }
 
-  update(a, now) {
-    const idle = a.status === 'idle'
-    this.color.setHex(idle ? COLOR.idle : COLOR.running)
-    for (const m of [this.fillMat, this.arcMat, this.beamMat]) m.color.copy(this.color)
-    this.fillMat.emissive.copy(this.color)
-    this.known = typeof a.est?.fraction === 'number'
-    this.target = this.known ? Math.max(0.06, Math.min(1, a.est.fraction)) * TOWER * 0.94 : TOWER * 0.94
-    const pct = this.known ? ` · ${Math.round(Math.min(1, a.est.fraction) * 100)}%` : ''
-    const elapsed = a.startedAt ? fmt(now - a.startedAt) : 'since before the deck loaded'
-    this.tag.element.className = `lbl tower${idle ? ' idle' : ''}`
-    this.tag.element.innerHTML =
-      `<div class="n">#${a.n}${pct}</div><div class="d">${esc(a.description)}</div>` +
-      `<div class="a">${idle ? 'Waiting for a message' : esc(a.action || 'Starting up')}</div>` +
-      `<div class="m">${elapsed} · ${esc(a.est?.text ?? '')}</div>`
+  function renderSummary(list, now) {
+    const el = $('summary')
+    if (!S.receivedAt) { el.textContent = 'Waiting for data…'; return }
+    const work = list.filter(s => s.status === 'working').length
+    const wait = list.filter(s => group(s.status) === 'wait').length
+    const agents = list.reduce((n, s) => n + agentsOf(s).running.length, 0)
+    const cloud = S.data && S.data.cloud
+    el.replaceChildren(
+      [plural(list.length, 'session'), work + ' working', wait + (wait === 1 ? ' needs you' : ' need you'), plural(agents, 'agent') + ' running'].join(' · '),
+      ' · ',
+      cloud ? h('span', { class: cloud.error ? 'warn' : '' }, 'cloud ' + (cloud.error ? 'not updating' : 'checked ' + ago(cloud.fetchedAt, now))) : 'cloud loading…')
   }
 
-  tick(dt, t) {
-    this.group.scale.setScalar(easeTo(this.group.scale.x, 1, dt, 5))
-    this.height = easeTo(this.height, this.target, dt, 2.5)
-    this.fill.scale.y = this.height
-    const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 3.2 + this.phase)
-    this.fillMat.opacity = this.known ? 0.95 : 0.35 + 0.45 * pulse
-    this.fillMat.emissiveIntensity = this.known ? 0.9 : 0.4 + 0.9 * pulse
-    if (!calm) this.arc.rotation.y -= dt * 1.6
-    this.beamMat.opacity = 0.15 + 0.45 * pulse
+  function renderNotice(now) {
+    const el = $('notice')
+    const age = now - S.receivedAt
+    const cloud = S.data && S.data.cloud
+    let tone = null
+    let text = ''
+    if (!S.receivedAt) { tone = 'idle'; text = 'No Claude session is sending to this window yet. In a session, press Pop out on the Agent deck pane or type /agent-deck-window.' }
+    else if (age > 8000) { tone = 'wait'; text = 'No update for ' + span(age) + '. Is a Claude session with the deck still open?' }
+    else if (cloud && cloud.error) { tone = 'fail'; text = 'Cloud sessions: ' + cloud.error + (cloud.sessions.length ? ' Showing the last list.' : '') }
+    el.hidden = !tone
+    if (tone) el.replaceChildren(h('span', { class: 'dot t-' + tone }), h('p', null, text))
   }
-}
 
-// --- A small block: a finished agent, or an agent type ready to start -------
-function block(color, w, h, opacity = 0.9) {
-  const m = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.18,
-    roughness: 0.5, metalness: 0.15, transparent: true, opacity }))
-  m.scale.set(w, h, w)
-  m.position.y = h / 2
-  return m
-}
+  const shapeEl = s => h('span', { class: 'shape ' + s.place + (s.offline ? ' hollow' : '') + ' t-' + TONE[s.status], 'aria-hidden': 'true' })
+  const placeText = s => s.place === 'local' ? (s.offline ? 'Local · offline' : 'Local') : 'Cloud'
+  const when = (s, now) => s.fromPlugin ? 'open now' : ago(s.updatedAt, now)
+  function select(key) { S.selected = S.selected === key ? null : key; render() }
 
-// --- One session: its stage, main hub, towers, finished blocks, types --------
-class SessionView {
-  constructor(id) {
-    this.id = id
-    this.group = new THREE.Group()
-    scene.add(this.group)
+  function renderRail(list, now) {
+    const rail = $('rail')
+    const s = S.selected && list.find(x => x.key === S.selected)
+    if (s) { rail.replaceChildren(...detail(s, now)); return }
 
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(STAGE, STAGE + 0.15, 0.5, 96),
-      new THREE.MeshStandardMaterial({ color: 0x0c1530, roughness: 0.75, metalness: 0.35 }))
-    disc.position.y = -0.25
-    this.group.add(disc)
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(STAGE + 0.02, 0.05, 8, 200).rotateX(Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: COLOR.rim }))
-    rim.position.y = 0.01
-    this.group.add(rim)
-    for (const r of [2.4, 4.8]) {
-      const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.02, r + 0.02, 128).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: COLOR.rim, transparent: true, opacity: 0.25 }))
-      ring.position.y = 0.012
-      this.group.add(ring)
+    const waiting = list.filter(x => group(x.status) === 'wait')
+    const blocks = [h('section', null,
+      h('h2', { class: 'eyebrow' }, h('span', { class: 'dot t-wait' }), 'Needs you'),
+      waiting.length
+        ? waiting.map(x => h('button', { class: 'row', onclick: () => select(x.key) },
+            shapeEl(x), h('span', { class: 'clip' }, x.title), h('span', { class: 'mono' }, when(x, now)),
+            h('span', { class: 'sub' }, x.needs || x.detail || LABEL[x.status])))
+        : h('p', { class: 'empty' }, 'Nothing is waiting on you.'))]
+    if (S.view === 'orbit' && list.length) {
+      blocks.push(h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Sessions'),
+        list.map(x => h('button', { class: 'row', onclick: () => select(x.key) },
+          shapeEl(x), h('span', { class: 'clip' }, x.title),
+          h('span', { class: 'mono' }, x.status === 'working' ? plural(agentsOf(x).running.length, 'agent') : when(x, now))))))
     }
-
-    this.hubMat = new THREE.MeshStandardMaterial({ color: COLOR.mainOff, emissive: COLOR.main, emissiveIntensity: 0,
-      roughness: 0.4, metalness: 0.2 })
-    const hubBase = new THREE.Mesh(boxGeo, this.hubMat)
-    hubBase.scale.set(1.6, 0.55, 1.6)
-    hubBase.position.y = 0.275
-    const hubTop = new THREE.Mesh(boxGeo, this.hubMat)
-    hubTop.scale.set(1.0, 0.5, 1.0)
-    hubTop.position.y = 0.8
-    hubBase.userData.sharedMaterial = hubTop.userData.sharedMaterial = true
-    this.group.add(hubBase, hubTop)
-    this.hubTag = label('', 'hub')
-    this.hubTag.position.y = 1.75
-    this.group.add(this.hubTag)
-
-    this.nameTag = label('', 'sname')
-    this.nameTag.position.set(0, 0.2, STAGE + 1.1)
-    this.group.add(this.nameTag)
-
-    this.towers = new Map()
-    this.blocks = new Map()
-    this.pedestals = new Map()
-    this.working = false
-    this.target = new THREE.Vector3()
+    blocks.push(h('section', null,
+      h('h2', { class: 'eyebrow' }, 'Key'),
+      h('ul', { class: 'legend' },
+        h('li', null, h('span', { class: 'shape cloud t-idle' }), 'Cloud session'),
+        h('li', null, h('span', { class: 'shape local t-idle' }), 'Local session'),
+        h('li', null, h('span', { class: 'shape local hollow t-idle' }), 'Computer offline'),
+        h('li', null, h('span', { class: 'dot t-work' }), 'Working · agents'),
+        h('li', null, h('span', { class: 'dot t-wait' }), 'Waiting for you'),
+        h('li', null, h('span', { class: 'dot t-fail' }), 'Stopped with an error'),
+        h('li', null, h('span', { class: 'dot t-done' }), 'Finished'),
+        h('li', null, h('span', { class: 'dot t-idle' }), 'Idle'),
+      ),
+      h('p', { class: 'keys' }, h('span', { class: 'k' }, '1'), h('span', { class: 'k' }, '2'), h('span', { class: 'k' }, '3'), ' layouts  ',
+        h('span', { class: 'k' }, 'L'), ' list  ', h('span', { class: 'k' }, 'F'), ' fullscreen  ', h('span', { class: 'k' }, 'Esc'), ' close'),
+    ))
+    rail.replaceChildren(...blocks)
   }
 
-  update(s, now) {
-    this.working = s.main.isWorking
-    this.hubMat.color.setHex(this.working ? COLOR.main : COLOR.mainOff)
-    this.hubTag.element.className = `lbl hub${this.working ? '' : ' off'}`
-    this.hubTag.element.textContent = this.working ? `Main session · ${s.main.action || 'working'}` : 'Main session · waiting for you'
-    this.nameTag.element.textContent = s.name
+  function agentLine(a, now) {
+    if (a.status === 'idle') return 'Waiting for a message'
+    const bits = [a.action || 'Starting up']
+    if (a.startedAt) bits.push(span(now - a.startedAt))
+    if (a.est && a.est.text) bits.push(a.est.text)
+    return bits.join(' · ')
+  }
 
-    const live = s.agents.filter(a => a.status === 'running' || a.status === 'idle')
-    const done = s.agents.filter(a => !(a.status === 'running' || a.status === 'idle'))
+  function detail(s, now) {
+    const { running, finished } = agentsOf(s)
+    const rows = [
+      ['Where', s.place === 'local' ? (s.offline ? 'Your computer (offline)' : 'Your computer') : 'Cloud'],
+      s.repo ? ['Project', s.repo + (s.branch ? ' · ' + s.branch : '')] : null,
+      s.doing ? [s.status === 'working' ? 'Doing' : 'Last task', s.doing] : null,
+      s.needs ? ['Needs you', s.needs, 'needs'] : null,
+      s.detail ? ['Last turn', s.detail] : null,
+      ['Updated', when(s, now)],
+      s.createdAt ? ['Started', ago(s.createdAt, now)] : null,
+      s.types.length ? ['Can start', s.types.join(' · ')] : null,
+    ].filter(Boolean)
+    const items = [
+      ...running.map(a => h('li', null, h('span', { class: 'dot ' + (a.status === 'idle' ? 't-wait' : 't-work pulse') }),
+        h('span', null, a.description || 'Agent', h('br'), h('span', { class: 'what' }, agentLine(a, now))))),
+      ...finished.map(a => h('li', null, h('span', { class: 'dot t-' + (a.status === 'failed' ? 'fail' : a.status === 'stopped' ? 'idle' : 'done') }),
+        h('span', { class: 'what' }, (a.description || 'Agent') + ' · ' + (a.status === 'failed' ? 'failed' : a.status === 'stopped' ? 'stopped' : 'finished') +
+          (a.startedAt && a.endedAt ? ' · took ' + span(a.endedAt - a.startedAt) : '')))),
+    ]
+    return [
+      h('div', { class: 'detail-head' },
+        h('span', { class: 'pill' }, h('span', { class: 'dot t-' + TONE[s.status] + (s.status === 'working' ? ' pulse' : '') }), LABEL[s.status]),
+        h('button', { class: 'btn', onclick: () => select(null) }, 'Close')),
+      h('h2', { class: 'detail-title' }, s.title),
+      h('dl', null, rows.map(([k, v, cls]) => [h('dt', null, k), h('dd', { class: cls || '' }, v)])),
+      h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Agents'),
+        items.length ? h('ul', { class: 'agents' }, items)
+          : h('p', { class: 'empty' }, s.status === 'working' ? 'No agents seen yet.' : 'Agents show here while the session is working.')),
+      s.cloudId ? h('a', { class: 'open', href: 'https://claude.ai/code/' + encodeURIComponent(s.cloudId), target: '_blank', rel: 'noopener' }, 'Open on claude.ai ↗') : null,
+    ]
+  }
 
-    sync(this.towers, live, () => new Tower(), this.group)
-    const tp = ringPositions(live.length, live.length === 1 ? 3.0 : 3.1, -Math.PI / 2)
-    live.forEach((a, i) => {
-      const tower = this.towers.get(a.id)
-      tower.update(a, now)
-      tower.group.userData.goal = tp[i]
+  // ---------- Board ----------
+  function renderBoard(list, now) {
+    const cols = [
+      ['work', 'Working', list.filter(s => group(s.status) === 'work'), 'Nothing is running right now.'],
+      ['wait', 'Needs you', list.filter(s => group(s.status) === 'wait'), 'Nothing is waiting on you.'],
+      ['idle', 'Recent', list.filter(s => group(s.status) === 'recent'), S.range === 'day' ? 'No other sessions today.' : 'No other sessions this week.'],
+    ]
+    $('board').replaceChildren(h('div', { class: 'cols' }, cols.map(([t, name, items, none]) =>
+      h('div', { class: 'col' },
+        h('div', { class: 'col-head' }, h('span', { class: 'dot t-' + t }), h('h2', { class: 'eyebrow' }, name), h('span', { class: 'mono' }, String(items.length))),
+        items.length ? items.map(s => card(s, now)) : h('p', { class: 'empty' }, none)))))
+  }
+
+  function card(s, now) {
+    const { running, finished } = agentsOf(s)
+    const line = s.needs
+      ? h('div', { class: 'card-line needs' }, s.needs)
+      : h('div', { class: 'card-line' }, s.status === 'working' ? s.doing || 'Working' : s.detail || s.doing || LABEL[s.status])
+    const rows = [
+      ...running.map(a => h('li', null, h('span', { class: 'dot ' + (a.status === 'idle' ? 't-wait' : 't-work pulse') }),
+        h('span', { class: 'clip' }, a.description || 'Agent', ' ', h('span', { class: 'what' }, '· ' + (a.status === 'idle' ? 'waiting' : a.action || 'starting up'))))),
+      ...finished.slice(0, 2).map(a => h('li', null, h('span', { class: 'dot t-' + (a.status === 'failed' ? 'fail' : 'done') }), h('span', { class: 'clip what' }, a.description || 'Agent'))),
+    ]
+    return h('button', { class: 'card' + (S.selected === s.key ? ' sel' : ''), onclick: () => select(s.key) },
+      h('div', { class: 'card-top' }, shapeEl(s), h('span', { class: 'tag' }, placeText(s)), h('span', { class: 'mono' }, when(s, now))),
+      h('div', { class: 'card-title' }, s.title),
+      s.repo && s.repo !== s.title ? h('div', { class: 'mono clip' }, s.repo + (s.branch ? ' · ' + s.branch : '')) : null,
+      line,
+      rows.length ? h('ul', { class: 'agents' }, rows) : null)
+  }
+
+  // ---------- Lanes ----------
+  function renderLanes(list, now) {
+    const from = now - LANE_MS
+    const x = t => Math.max(0, Math.min(100, ((t - from) / LANE_MS) * 100))
+    const head = h('div', { class: 'lanes-head' }, h('div', { class: 'spacer mono' }, 'Session'),
+      h('div', { class: 'axis' }, ['60m ago', '45m', '30m', '15m', 'now'].map((t, i) => h('span', { style: 'left:' + (i * 25) + '%' }, t))))
+    const lanes = list.map(s => {
+      const marks = []
+      for (const t of s.activity) if (t >= from) marks.push(h('span', { class: 'tick' + (now - t < 120e3 ? ' hot' : ''), style: 'left:' + x(t) + '%' }))
+      const { running, finished } = agentsOf(s)
+      const runs = [...running, ...finished].filter(a => a.startedAt && (isLive(a) || (a.endedAt || a.startedAt) >= from)).slice(0, 6)
+      runs.forEach((a, i) => {
+        const end = isLive(a) ? now : Math.max(a.endedAt || 0, a.startedAt + 30e3)
+        const left = x(a.startedAt)
+        const width = Math.max(1.2, x(end) - left)
+        const cls = isLive(a) ? 'live' : a.status === 'failed' ? 'bad' : 'end'
+        marks.push(h('span', { class: 'run ' + cls, style: 'left:' + left + '%;width:' + width + '%;top:' + (21 + (i % 2) * 15) + 'px', title: a.description }, a.description || 'Agent'))
+      })
+      if (!s.activity.length && !s.fromPlugin && s.updatedAt >= from) marks.push(h('span', { class: 'mark', style: 'left:' + x(s.updatedAt) + '%' }))
+      if (s.status === 'working') marks.push(h('span', { class: 'nowcap pulse' }))
+      if (!marks.length) marks.push(h('span', { class: 'when' }, s.fromPlugin ? 'open, quiet' : 'last active ' + ago(s.updatedAt, now)))
+      return h('button', { class: 'lane' + (S.selected === s.key ? ' sel' : ''), onclick: () => select(s.key) },
+        h('div', { class: 'lane-label' },
+          h('div', { class: 'lane-name' }, shapeEl(s), h('span', { class: 'clip' }, s.title)),
+          h('div', { class: 'mono clip' }, placeText(s) + ' · ' + LABEL[s.status] + (s.repo && s.repo !== s.title ? ' · ' + s.repo : ''))),
+        h('div', { class: 'track' }, marks))
     })
-
-    sync(this.blocks, done, a => {
-      const g = new THREE.Group()
-      g.add(block(COLOR[a.status] ?? COLOR.stopped, 0.8, 0.6, 0.85))
-      const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
-      const tag = label(`${mark} ${esc(a.description)}`, `small fin ${a.status}`)
-      tag.position.y = 1.05
-      g.add(tag)
-      return { group: g, tick() {} }
-    }, this.group)
-    const bp = ringPositions(done.length, 5.3, Math.PI / 2 + 0.35)
-    done.forEach((a, i) => { this.blocks.get(a.id).group.userData.goal = bp[i] })
-
-    const types = s.types.slice(0, 14).map(name => ({ id: name, name }))
-    sync(this.pedestals, types, t => {
-      const g = new THREE.Group()
-      g.add(block(COLOR.type, 0.62, 0.32))
-      const tag = label(esc(t.name), 'small')
-      tag.position.y = 0.75
-      g.add(tag)
-      return { group: g, tick() {} }
-    }, this.group)
-    const pp = ringPositions(types.length, 6.6, -Math.PI / 2 + Math.PI / Math.max(1, types.length))
-    types.forEach((t, i) => { this.pedestals.get(t.id).group.userData.goal = pp[i] })
+    $('lanes').replaceChildren(h('div', { class: 'lanes' }, head, lanes.length ? lanes : h('p', { class: 'empty' }, 'No sessions in this range.')))
   }
 
-  tick(dt, t) {
-    this.group.position.lerp(this.target, 1 - Math.exp(-3 * dt))
-    this.hubMat.emissiveIntensity = this.working ? (calm ? 0.6 : 0.45 + 0.35 * Math.sin(t * 2.4)) : 0
-    for (const map of [this.towers, this.blocks, this.pedestals]) {
-      for (const item of map.values()) {
-        const goal = item.group.userData.goal
-        if (goal) {
-          item.group.position.x = easeTo(item.group.position.x, goal[0], dt, 3)
-          item.group.position.z = easeTo(item.group.position.z, goal[1], dt, 3)
-        }
-        item.tick(dt, t)
+  // ---------- Orbit (canvas) ----------
+  const cv = $('orbit')
+  const ctx = cv.getContext('2d')
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)')
+  const col = {}
+  let hits = []
+  let hovered = null
+  let orbitRunning = false
+  let cachedList = []
+  let cachedAt = 0
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement)
+    for (const k of ['panel', 'raise', 'line', 'fg', 'dim', 'faint', 'accent', 'work', 'wait', 'done', 'fail', 'idle']) col[k] = cs.getPropertyValue('--' + k).trim()
+  }
+  function alpha(hex, a) {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    if (!m) return hex
+    const n = parseInt(m[1], 16)
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'
+  }
+  function ensureOrbit() {
+    if (orbitRunning || S.view !== 'orbit') return
+    orbitRunning = true
+    requestAnimationFrame(frame)
+  }
+  function frame(t) {
+    if (S.view !== 'orbit' || document.hidden) { orbitRunning = false; return }
+    drawOrbit(reduceMotion.matches ? 0 : t / 1000)
+    requestAnimationFrame(frame)
+  }
+  function shapePath(place, x, y, r) {
+    ctx.beginPath()
+    if (place === 'local') {
+      if (ctx.roundRect) ctx.roundRect(x - r, y - r, r * 2, r * 2, r * 0.3)
+      else ctx.rect(x - r, y - r, r * 2, r * 2)
+    } else ctx.arc(x, y, r, 0, Math.PI * 2)
+  }
+  function label(text, x, y, font, color) {
+    ctx.font = font
+    ctx.lineWidth = 4
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = alpha(col.panel, 0.92)
+    ctx.strokeText(text, x, y)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+  }
+
+  function drawOrbit(sec) {
+    const dpr = Math.min(2, devicePixelRatio || 1)
+    const W = cv.clientWidth
+    const H = cv.clientHeight
+    if (!W || !H) return
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+
+    const now = Date.now()
+    if (now - cachedAt > 500) { cachedList = sessions(now); cachedAt = now }
+    const list = cachedList
+    const compact = W < 640
+    const cx = W / 2
+    const cy = H / 2 + (compact ? 22 : 14)
+    const padX = compact ? 46 : 190
+    const padY = compact ? 150 : 130
+    const tilt = Math.max(0.5, Math.min(0.92, (H - padY) / Math.max(1, W - padX)))
+    const R = Math.max(70, Math.min((W - padX) / 2, (H - padY) / 2 / tilt))
+    const rings = [
+      { key: 'work', r: R * 0.36, name: 'WORKING', speed: 1 / 240, size: 13 },
+      { key: 'wait', r: R * 0.67, name: 'NEEDS YOU', speed: -1 / 360, size: 11 },
+      { key: 'recent', r: R, name: 'RECENT', speed: 1 / 720, size: 8 },
+    ]
+
+    for (const ring of rings) {
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, ring.r, ring.r * tilt, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? alpha(col.work, 0.35) : ring.key === 'wait' ? alpha(col.wait, 0.22) : col.line
+      ctx.lineWidth = ring.key === 'work' ? 1.5 : 1
+      ctx.setLineDash(ring.key === 'recent' ? [3, 5] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+    // Which ring is which, in the corner rather than on the rings, so planets never sit on it.
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    rings.forEach((ring, i) => {
+      const y0 = 22 + i * 17
+      ctx.beginPath()
+      ctx.ellipse(24, y0, 7, 7 * 0.6, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? col.work : ring.key === 'wait' ? col.wait : col.faint
+      ctx.lineWidth = 1.5
+      ctx.setLineDash(ring.key === 'recent' ? [2, 2] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.font = '500 10px JetBrains Mono, ui-monospace, monospace'
+      ctx.fillStyle = col.faint
+      ctx.fillText((i === 0 ? 'INNER · ' : i === 1 ? 'MIDDLE · ' : 'OUTER · ') + ring.name, 38, y0 + 1)
+    })
+    ctx.textBaseline = 'alphabetic'
+
+    const placed = []
+    for (const ring of rings) {
+      const items = list.filter(s => group(s.status) === ring.key)
+      const n = items.length
+      const turn = sec * ring.speed * Math.PI * 2
+      items.forEach((s, j) => {
+        const a = -Math.PI / 2 + turn + (j * Math.PI * 2) / Math.max(1, n) + (ring.key === 'wait' ? Math.PI / Math.max(2, n) : 0)
+        const depth = Math.sin(a)
+        placed.push({ s, ring, n, x: cx + ring.r * Math.cos(a), y: cy + ring.r * Math.sin(a) * tilt, depth, r: ring.size * (1 + 0.14 * depth) })
+      })
+    }
+
+    for (const p of placed) {
+      if (p.ring.key !== 'work') continue
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(p.x, p.y)
+      ctx.strokeStyle = alpha(col.work, 0.45)
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 7])
+      ctx.lineDashOffset = -sec * 14
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, 24, 0, Math.PI * 2)
+    ctx.fillStyle = col.raise
+    ctx.fill()
+    ctx.strokeStyle = col.line
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '600 12px Chakra Petch, ui-sans-serif, sans-serif'
+    ctx.fillStyle = col.dim
+    ctx.fillText('YOU', cx, cy + 1)
+    ctx.textBaseline = 'alphabetic'
+
+    hits = []
+    placed.sort((a, b) => a.depth - b.depth)
+    const pulse = 0.5 + 0.5 * Math.sin(sec * 3)
+    for (const p of placed) {
+      const { s, x, y, r } = p
+      const c = col[TONE[s.status]] || col.idle
+      const isSel = S.selected === s.key
+      const isHover = hovered === s.key
+      const running = s.status === 'working' ? agentsOf(s).running : []
+
+      if (running.length) {
+        ctx.beginPath()
+        ctx.ellipse(x, y, r + 15, (r + 15) * 0.55, 0, 0, Math.PI * 2)
+        ctx.strokeStyle = alpha(col.work, 0.25)
+        ctx.lineWidth = 1
+        ctx.stroke()
       }
+      if (s.status === 'working' || group(s.status) === 'wait') {
+        shapePath(s.place, x, y, r + 4 + pulse * 4)
+        ctx.strokeStyle = alpha(c, 0.15 + 0.25 * (1 - pulse))
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+      ctx.save()
+      if (s.status === 'working') { ctx.shadowColor = c; ctx.shadowBlur = 14 + 8 * pulse }
+      shapePath(s.place, x, y, r)
+      if (s.offline) { ctx.lineWidth = 2.5; ctx.strokeStyle = c; ctx.stroke() }
+      else { ctx.fillStyle = group(s.status) === 'recent' ? alpha(c, 0.75) : c; ctx.fill() }
+      ctx.restore()
+      if (isSel || isHover) {
+        shapePath(s.place, x, y, r + 5)
+        ctx.strokeStyle = isSel ? col.accent : col.fg
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+
+      // Agents as moons: white while running, amber while waiting for a message.
+      running.forEach((a, k) => {
+        const ang = sec * (Math.PI * 2 / 7) + (k * Math.PI * 2) / running.length
+        const mx = x + (r + 15) * Math.cos(ang)
+        const my = y + (r + 15) * 0.55 * Math.sin(ang)
+        ctx.save()
+        ctx.shadowColor = a.status === 'idle' ? col.wait : col.work
+        ctx.shadowBlur = 8
+        ctx.beginPath()
+        ctx.arc(mx, my, 3.4, 0, Math.PI * 2)
+        ctx.fillStyle = a.status === 'idle' ? col.wait : col.fg
+        ctx.fill()
+        ctx.restore()
+      })
+
+      const showLabel = isSel || isHover || (compact ? p.ring.key === 'work' : (p.ring.key !== 'recent' || p.n <= 9))
+      if (showLabel) {
+        const max = compact ? 20 : p.ring.key === 'recent' ? 22 : 28
+        // Upper half of a ring: label above the planet, so it never runs into the hub or an inner ring.
+        const above = p.depth < -0.25
+        const gap = r + (running.length ? 14 : 6)
+        ctx.textAlign = 'center'
+        label(clip(s.title, isHover || isSel ? 60 : max), x, above ? y - gap - 16 : y + gap + 11,
+          '600 12px Figtree, ui-sans-serif, sans-serif', p.ring.key === 'recent' && !isHover && !isSel ? col.dim : col.fg)
+        const sub = (s.place === 'local' ? (s.offline ? 'LOCAL · OFFLINE' : 'LOCAL') : 'CLOUD') + ' · ' +
+          (running.length ? plural(running.length, 'agent').toUpperCase() : when(s, now).toUpperCase())
+        label(sub, x, above ? y - gap - 3 : y + gap + 25, '500 9.5px JetBrains Mono, ui-monospace, monospace', col.faint)
+      }
+      hits.push({ key: s.key, x, y, r: r + 10 })
+    }
+
+    if (!list.length) {
+      ctx.textAlign = 'center'
+      label(S.receivedAt ? (S.range === 'day' ? 'No sessions in the last day' : 'No sessions this week') : 'Waiting for data…',
+        cx, cy + 52, '500 13px Figtree, ui-sans-serif, sans-serif', col.dim)
     }
   }
 
-  dispose() {
-    for (const map of [this.towers, this.blocks, this.pedestals]) for (const item of map.values()) disposeTree(item.group)
-    disposeTree(this.group)
-    scene.remove(this.group)
-  }
-}
-
-/** Adds what is new, removes what is gone; items are keyed by `id`. */
-function sync(map, list, make, parent) {
-  const ids = new Set(list.map(x => x.id))
-  for (const [id, item] of map) {
-    if (!ids.has(id)) {
-      disposeTree(item.group)
-      parent.remove(item.group)
-      map.delete(id)
+  function hitAt(ev) {
+    const rect = cv.getBoundingClientRect()
+    const x = ev.clientX - rect.left
+    const y = ev.clientY - rect.top
+    let best = null
+    let bestD = Infinity
+    for (const p of hits) {
+      const d = Math.hypot(p.x - x, p.y - y)
+      if (d <= p.r && d < bestD) { best = p.key; bestD = d }
     }
+    return best
   }
-  for (const x of list) {
-    if (map.has(x.id)) continue
-    // New items start at the middle and glide out to their place.
-    const item = make(x)
-    parent.add(item.group)
-    map.set(x.id, item)
+  cv.addEventListener('pointermove', ev => { hovered = hitAt(ev); cv.style.cursor = hovered ? 'pointer' : 'default' })
+  cv.addEventListener('pointerleave', () => { hovered = null })
+  cv.addEventListener('click', ev => { const k = hitAt(ev); if (k) select(k); else if (S.selected) select(null) })
+
+  // ---------- controls ----------
+  function setView(v) { S.view = v; store.set('deck.view', v); render() }
+  function setRange(r) { S.range = r; store.set('deck.range', r); cachedAt = 0; render() }
+  function toggleRail() { const off = document.body.classList.toggle('norail'); store.set('deck.norail', off ? '1' : '0') }
+  function fullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {})
   }
-}
-
-// --- The deck: one stage per session, laid round a circle ---------------------
-const views = new Map()
-let span = 0
-
-function layout(count) {
-  if (count <= 1) return [[0, 0]]
-  const r = SPACING / (2 * Math.sin(Math.PI / count))
-  return Array.from({ length: count }, (_, i) => {
-    const a = -Math.PI / 2 + (i / count) * Math.PI * 2
-    return [Math.cos(a) * r, Math.sin(a) * r]
+  $('views').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view) })
+  $('ranges').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setRange(b.dataset.range) })
+  $('list').addEventListener('click', toggleRail)
+  $('full').addEventListener('click', fullscreen)
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    const k = e.key.toLowerCase()
+    if (k === '1' || k === '2' || k === '3') setView(VIEWS[Number(k) - 1])
+    else if (k === 't') setView(VIEWS[(VIEWS.indexOf(S.view) + 1) % VIEWS.length])
+    else if (k === 'l') toggleRail()
+    else if (k === 'f') fullscreen()
+    else if (k === 'escape' && S.selected) select(null)
   })
-}
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render() })
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render)
 
-function update(sessions) {
-  const now = Date.now()
-  const ids = new Set(sessions.map(s => s.id))
-  for (const [id, view] of views) {
-    if (!ids.has(id)) { view.dispose(); views.delete(id) }
-  }
-  const spots = layout(sessions.length)
-  sessions.forEach((s, i) => {
-    let view = views.get(s.id)
-    if (!view) {
-      view = new SessionView(s.id)
-      view.group.position.set(spots[i][0], 0, spots[i][1])
-      views.set(s.id, view)
-    }
-    view.target.set(spots[i][0], 0, spots[i][1])
-    view.update(s, now)
-  })
-  span = sessions.length <= 1 ? 0 : SPACING / (2 * Math.sin(Math.PI / sessions.length))
-}
-
-// --- Frame loop and sizing --------------------------------------------------
-function resize() {
-  const w = innerWidth
-  const h = innerHeight
-  renderer.setSize(w, h)
-  composer.setSize(w, h)
-  bloom.setSize(w, h)
-  labels.setSize(w, h)
-  camera.aspect = w / h
-  // Keep the scene centred in the room the list leaves.
-  const panel = document.body.classList.contains('nopanel') ? 0 : document.getElementById('panel').offsetWidth + 16
-  if (panel) camera.setViewOffset(w, h, panel / 2, 0, w, h)
-  else camera.clearViewOffset()
-  camera.updateProjectionMatrix()
-}
-addEventListener('resize', resize)
-resize()
-
-const clock = new THREE.Clock()
-function frame() {
-  const dt = Math.min(clock.getDelta(), 0.1)
-  const t = clock.elapsedTime
-  // Pull the camera out as sessions are added, so every stage stays in view.
-  const roomy = document.body.classList.contains('nopanel') ? 1 : 1.22
-  const want = (28 + span * 1.6) * roomy
-  const dist = camera.position.distanceTo(controls.target)
-  if (Math.abs(dist - want) > 0.5 && !controls.userData?.zoomed) {
-    camera.position.sub(controls.target).setLength(easeTo(dist, want, dt, 1.5)).add(controls.target)
-  }
-  for (const view of views.values()) view.tick(dt, t)
-  controls.update()
-  composer.render()
-  labels.render(scene, camera)
-  requestAnimationFrame(frame)
-}
-controls.userData = { zoomed: false }
-renderer.domElement.addEventListener('wheel', () => { controls.userData.zoomed = true }, { passive: true })
-requestAnimationFrame(frame)
-
-window.__deckScene = {
-  update,
-  resize,
-  toggleRotate() {
-    rotateWanted = !rotateWanted
-    controls.autoRotate = rotateWanted
-  },
-}
-update(window.__deckSessions())
+  readColors()
+  poll()
+  render()
+  setInterval(() => { poll(); render() }, 1000)
+})()
 </script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import type { DeckAgent, DeckMain, DeckType } from '../types'
+import type { CloudBlock } from './cloud'
 import { type Estimate, estimate } from './scene'
 
 // The pop-out window: a page in the browser that reads `deck-data.js` beside it
@@ -29,6 +30,9 @@ export type WindowSession = {
 }
 
 export type Sessions = Record<string, WindowSession>
+
+/** The whole data file: each open session's own entry, and the account's cloud list when fetched. */
+export type DeckFile = { sessions: Sessions; cloud?: CloudBlock }
 
 /** A session's entry stops showing once it has not been written for this long. */
 export const STALE_MS = 60_000
@@ -74,20 +78,26 @@ export function sessionEntry(input: {
   }
 }
 
-export function encode(sessions: Sessions): string {
-  return `${PREFIX}${JSON.stringify({ v: 1, sessions })}${SUFFIX}`
+export function encode(sessions: Sessions, cloud?: CloudBlock): string {
+  return `${PREFIX}${JSON.stringify(cloud ? { v: 2, sessions, cloud } : { v: 2, sessions })}${SUFFIX}`
+}
+
+export function decodeFile(text: string): DeckFile {
+  const start = text.indexOf('(')
+  const end = text.lastIndexOf(')')
+  if (start < 0 || end <= start) return { sessions: {} }
+  try {
+    const parsed = JSON.parse(text.slice(start + 1, end)) as { sessions?: Sessions; cloud?: CloudBlock }
+    const sessions = parsed.sessions && typeof parsed.sessions === 'object' ? parsed.sessions : {}
+    const cloud = parsed.cloud && typeof parsed.cloud === 'object' && Array.isArray(parsed.cloud.sessions) ? parsed.cloud : undefined
+    return cloud ? { sessions, cloud } : { sessions }
+  } catch {
+    return { sessions: {} }
+  }
 }
 
 export function decode(text: string): Sessions {
-  const start = text.indexOf('(')
-  const end = text.lastIndexOf(')')
-  if (start < 0 || end <= start) return {}
-  try {
-    const parsed = JSON.parse(text.slice(start + 1, end)) as { sessions?: Sessions }
-    return parsed.sessions && typeof parsed.sessions === 'object' ? parsed.sessions : {}
-  } catch {
-    return {}
-  }
+  return decodeFile(text).sessions
 }
 
 /** The file's sessions with this one's entry put in (or taken out, with no entry), stale ones dropped. */
