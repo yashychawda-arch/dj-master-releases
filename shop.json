@@ -1,0 +1,5 @@
+{
+  "version": "1.36.1",
+  "notes": "Fixed: coming back from the taskbar while maximised could leave the window showing only its background. It now draws itself again.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.36.1"
+}
