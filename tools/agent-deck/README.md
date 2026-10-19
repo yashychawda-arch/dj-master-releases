@@ -15,31 +15,46 @@ A live 3D pane inside Claude Code that shows, for the session it runs in:
 ## Pop it out into its own window
 
 Press **Pop out ⧉** in the pane, or type `/agent-deck-window`. The deck opens as its own window (an Edge or
-Chrome app window, falling back to your default browser), so you can drag it to another screen and press
-**F** to fill it. This window is full 3D: one round stage per open Claude session, glowing towers for working
-agents, a camera that turns by itself (drag to turn it yourself, scroll to zoom), and the list down the side.
+Chrome app window, falling back to your default browser), so you can drag it to another screen and press **F** to
+fill it.
 
-Four looks, switched with the buttons at the top or keys `1`-`4` (`T` cycles); the window remembers your pick:
+The window shows every session on your account, in six layouts. The first three are 3D scenes; they show one
+session at a time, large: the one you click in the list, or else each session that is working or waiting on you
+in turn, every 20 seconds (`[` `]` or the arrows at the bottom step through them).
 
-- **Decks**: a DJ booth. Each working agent is a turntable: the record spins while it works and the tonearm
-  crosses the record as it gets through its steps. The main session is the mixer, its meters moving while it
-  works. Finished agents and the agent types ready to start are record crates either side.
-- **Circuit**: a synthwave racetrack under a striped sun. Each agent races its own lane; its pod sits as far
-  round the lap as it has got, the glowing trail behind it the distance covered. With nothing to measure, the
-  pod keeps lapping with a short comet tail.
-- **Workshop**: a floating island of little robots. Each working agent hammers at its bench under a ring that
+- **Decks** (`1`): a DJ booth. Each working agent is a turntable: the record spins while it works and the tonearm
+  crosses the record as it gets through its steps. The main session is the mixer, its meters moving while it works;
+  finished agents and the agent types ready to start are record crates either side.
+- **Circuit** (`2`): a synthwave racetrack under a striped sun. Each agent races its own lane; its pod sits as far
+  round the lap as it has got, the glowing trail behind it the distance covered. With nothing to measure, the pod
+  keeps lapping with a short comet tail.
+- **Workshop** (`3`): a floating island of little robots. Each working agent hammers at its bench under a ring that
   fills as it goes; the agent types that could start sit waiting on a bench; finished work is stacked in crates.
   The main session is the foreman in the hard hat.
-- **Stage**: the glass towers from the pane, in full 3D.
+- **Orbit** (`4`): you in the middle; working sessions on the inner ring, sessions waiting for you on the middle
+  ring, recent ones on the outer ring. Running agents circle their session. Cloud sessions are round, local ones
+  square; a hollow square is a computer that is offline.
+- **Board** (`5`): Working / Needs you / Recent columns, one card per session with its agents.
+- **Lanes** (`6`): one row per session across the last hour, agent runs drawn as bars.
 
-Add `#demo` to the window's address to try the looks on made-up agents.
+Click a session (or its name in a 3D scene) for its details and, for one claude.ai knows, an **Open on claude.ai**
+link. `L` shows or hides the list, `F` fullscreen, `R` the 3D camera moving or still (drag to turn it, scroll to
+zoom), `Esc` closes the details, **Today / This week** sets how far back finished sessions go. The 3D layouts load
+three.js from the internet when the window opens; the other three work without it. Add `#demo` to the window's
+address to try the layouts on made-up sessions.
 
-- `F` fullscreen · `L` show or hide the list · `R` camera moving on or off · `1`-`4` / `T` look
-- Every session with the deck feeds the same window, so it shows all of them at once. A session drops off
-  about a minute after it closes.
-- The 3D part loads three.js from the internet when the window opens; offline, the list still updates.
-- The window reads a small file the sessions write every couple of seconds:
-  `~/.claude/agent-deck/deck-data.js`. `/agent-deck-window off` stops the sessions writing it.
+Where the sessions come from:
+
+- **Sessions on this computer with the deck**: live, every couple of seconds, each agent with its current step and
+  time left.
+- **Everything else on your account**: cloud sessions, and sessions on other computers that are connected to
+  claude.ai. One of the open sessions fetches claude.ai's session list (the one `claude --teleport` shows) every
+  20 seconds, signed in as you, and the recent history of up to six working ones for their agents.
+- A session on this computer that claude.ai also lists shows once, matched by its folder name.
+- If the list cannot be fetched (signed out, no network), the window says why and keeps showing this computer's
+  sessions.
+- The window reads a small file the sessions write: `~/.claude/agent-deck/deck-data.js`.
+  `/agent-deck-window off` stops the sessions writing it, and the cloud fetching with it.
 
 ## About "time left"
 
@@ -72,7 +87,16 @@ irm https://claude.ai/install.ps1 | iex
 New sessions open the deck by themselves. In a session that is already running, type `/reload-plugins`
 and then `/agent-deck`.
 
-To update later: `git -C "$HOME\agent-deck-src" pull`, then `/reload-plugins` in a session.
+To update later:
+
+```powershell
+git -C "$HOME\agent-deck-src" pull
+claude plugin marketplace update agent-deck
+claude plugin update agent-deck@agent-deck
+```
+
+Then start a new session (or type `/reload-plugins` in an open one) and press **Pop out** again: the window page is
+copied out each time you pop it out, so an open window keeps the old page until then.
 
 It sees the agents of the session it is loaded in. Agents a session started before the deck loaded
 appear too, with no start time.

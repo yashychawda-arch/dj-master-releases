@@ -1,6 +1,6 @@
 {
   "name": "agent-deck",
-  "description": "Agent deck: a live 3D pane of what Claude's agents are doing",
+  "description": "Agent deck: a live view of Claude's agents and every session on your account",
   "owner": {
     "name": "Yoshi C"
   },

@@ -4,276 +4,953 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
+/* Layout: one-screen instrument panel. Header bar, the live stage (Orbit, Board or Lanes) on the left, a detail rail on the right. */
+:root {
+  --bg: #0c0f13;
+  --panel: #12161c;
+  --raise: #191e26;
+  --line: #242b35;
+  --fg: #e7ecf2;
+  --dim: #8d99a7;
+  --faint: #5b6674;
+  --accent: #8fb3ff;
+  --work: #3dd6c3;
+  --wait: #f4b54a;
+  --done: #7ccf8c;
+  --fail: #f07262;
+  --idle: #6f7d8e;
+  --display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --body: "Figtree", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #05070f;
-    --panel: rgba(9, 14, 30, 0.8);
-    --line: rgba(120, 150, 230, 0.16);
-    --text: #e6ecff;
-    --dim: #8f9cc4;
-    --cyan: #37d7ff;
-    --green: #3ddc84;
-    --red: #ff5c7a;
-    --grey: #9aa4b2;
-    --amber: #f5b14c;
-    --violet: #b48cff;
+    --bg: #edf0f4; --panel: #ffffff; --raise: #f4f6f9; --line: #d8dee6; --fg: #121820; --dim: #556170; --faint: #8994a2;
+    --accent: #2d5bd7; --work: #0a9886; --wait: #b4760a; --done: #2d8a45; --fail: #c7422e; --idle: #7b8898;
+    color-scheme: light;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
-    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  #stage, #labels { position: fixed; inset: 0; }
-  #labels { pointer-events: none; }
-  .hud { position: fixed; top: 14px; left: 16px; pointer-events: none; z-index: 2; padding: 9px 14px; border-radius: 12px;
-    background: rgba(5, 8, 20, 0.5); backdrop-filter: blur(6px); }
-  .hud h1 { margin: 0; font-size: 19px; letter-spacing: 0.22em; font-weight: 700; }
-  .hud .sub { color: var(--dim); margin-top: 4px; font-size: 14px; }
-  .bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 3; flex-wrap: wrap; justify-content: flex-end; }
-  .bar button { background: rgba(20, 30, 60, 0.75); color: var(--text); border: 1px solid var(--line); border-radius: 9px;
-    padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
-  .bar button:hover { border-color: rgba(120, 150, 230, 0.55); }
-  .bar button kbd { color: var(--dim); font: inherit; margin-left: 6px; }
-  .themes { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: rgba(20, 30, 60, 0.75); }
-  .bar .themes button { border: 0; border-radius: 0; background: transparent; }
-  .bar .themes button + button { border-left: 1px solid var(--line); }
-  .bar .themes button.on { background: rgba(90, 130, 255, 0.38); }
-  #panel { position: fixed; top: 62px; right: 16px; bottom: 44px; width: min(430px, 36vw); overflow: auto; z-index: 2;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(10px); }
-  body.nopanel #panel { display: none; }
-  .sess + .sess { margin-top: 22px; }
-  .sess h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 600;
-    display: flex; justify-content: space-between; gap: 8px; }
-  .sess h2 .main { text-transform: none; letter-spacing: 0; font-weight: 500; }
-  .sess h2 .main.on { color: var(--violet); }
-  .group { margin: 10px 0 2px; font-size: 12px; color: var(--dim); }
-  .ag { padding: 9px 0 8px; border-top: 1px solid var(--line); }
-  .ag .t { font-weight: 600; display: flex; gap: 7px; align-items: baseline; }
-  .ag .t .n { color: var(--cyan); font-variant-numeric: tabular-nums; }
-  .ag .t .ty { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: auto; white-space: nowrap; }
-  .ag .now { margin-top: 2px; }
-  .ag .meta { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .ag.idle .t .n { color: var(--amber); }
-  .prog { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; margin-top: 7px; overflow: hidden; position: relative; }
-  .prog i { position: absolute; inset: 0 auto 0 0; background: var(--cyan); border-radius: 2px; transition: width 0.8s ease; }
-  .prog.unknown i { width: 28%; animation: slide 1.8s ease-in-out infinite; }
-  @keyframes slide { 0% { left: -28%; } 100% { left: 100%; } }
-  .fin { display: flex; gap: 8px; font-size: 13px; color: var(--dim); padding: 3px 0; }
-  .fin .m { width: 1em; text-align: center; }
-  .fin.done .m { color: var(--green); } .fin.failed .m { color: var(--red); } .fin.stopped .m { color: var(--grey); }
-  .types { color: var(--dim); font-size: 12.5px; }
-  .empty { color: var(--dim); }
-  #status { position: fixed; left: 16px; bottom: 14px; color: var(--dim); font-size: 12px; z-index: 2; padding: 4px 10px; border-radius: 8px;
-    background: rgba(5, 8, 20, 0.5); }
-  #status.warn { color: var(--amber); }
-  #note { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); max-width: 520px; text-align: center; color: var(--dim);
-    font-size: 15px; z-index: 1; display: none; }
+}
 
-  /* Labels that float over the 3D scene. */
-  .lbl { font-family: inherit; white-space: nowrap; text-align: center; text-shadow: 0 1px 3px #000, 0 0 10px #000; transform: translateY(-50%); }
-  .lbl.agent .n { font-size: 19px; font-weight: 700; color: var(--cyan); }
-  .lbl.agent.idle .n { color: var(--amber); }
-  .lbl.agent .d { font-size: 15px; font-weight: 600; color: #f0f8ff; max-width: 230px; overflow: hidden; text-overflow: ellipsis; margin: 0 auto; }
-  .lbl.agent .a { font-size: 12.5px; color: #cfe6ff; max-width: 230px; overflow: hidden; text-overflow: ellipsis; margin: 0 auto; }
-  .lbl.agent .m { font-size: 12px; color: #a9b6dc; }
-  .lbl .pb { width: 140px; height: 4px; margin: 5px auto 0; background: rgba(255, 255, 255, 0.18); border-radius: 2px; overflow: hidden; position: relative; }
-  .lbl .pb i { position: absolute; inset: 0 auto 0 0; background: var(--cyan); border-radius: 2px; }
-  .lbl.agent.idle .pb i { background: var(--amber); }
-  .lbl .pb.unknown i { width: 30%; animation: slide 1.6s ease-in-out infinite; }
-  .lbl.hub { font-size: 14px; color: #d4c2ff; }
-  .lbl.hub.off { color: #a3a9c6; }
-  .lbl.small { font-size: 12px; color: #c0c8e4; }
-  .lbl.fin.done { color: var(--green); } .lbl.fin.failed { color: var(--red); } .lbl.fin.stopped { color: var(--grey); }
-  .lbl.sname { font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: #b3c3ff; font-weight: 600; }
-  .lbl.board { font-size: 12.5px; color: #e6ecff; background: rgba(12, 6, 30, 0.72); border: 1px solid rgba(255, 60, 200, 0.45);
-    border-radius: 8px; padding: 5px 10px; text-shadow: none; white-space: normal; max-width: 300px; }
-  .lbl.board b { color: #ff7ad9; font-weight: 600; letter-spacing: 0.06em; }
-  body[data-look="workshop"] .lbl.board { background: rgba(30, 22, 14, 0.72); border-color: rgba(255, 200, 120, 0.45); }
-  body[data-look="workshop"] .lbl.board b { color: #ffd27a; }
-  body[data-look="decks"] .lbl.board { border-color: rgba(120, 200, 255, 0.45); }
-  body[data-look="decks"] .lbl.board b { color: #7fdcff; }
-  @media (prefers-reduced-motion: reduce) { .prog.unknown i, .lbl .pb.unknown i { animation: none; left: 0; } }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; padding-inline: 16px; padding-block: 14px; }
+
+/* Header */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.brand h1 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 1.05rem; letter-spacing: .2em; text-transform: uppercase; }
+.brand p { margin: 2px 0 0; color: var(--dim); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.brand .warn { color: var(--wait); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button, .btn { border: 0; background: transparent; color: var(--dim); padding: 7px 12px; font-size: .8rem; font-weight: 500; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover, .btn:hover { color: var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--raise); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.btn { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.k { font-family: var(--mono); font-size: .68rem; color: var(--faint); }
+
+/* Notice */
+.notice { grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .86rem; }
+.notice p { margin: 0; flex: 1 1 260px; min-width: 0; }
+
+/* Stage + rail */
+.main { grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; min-height: 0; }
+body.norail .main { grid-template-columns: minmax(0, 1fr); }
+body.norail .rail { display: none; }
+.stage { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--accent) 7%, var(--panel)) 0%, var(--panel) 62%); }
+#orbit { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pane { position: absolute; inset: 0; overflow: auto; padding: 16px; }
+.rail { min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 64vh; min-height: 420px; }
+}
+
+/* Shared bits */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; flex: none; }
+.shape { width: 10px; height: 10px; background: currentColor; display: inline-block; flex: none; }
+.shape.cloud { border-radius: 50%; }
+.shape.local { border-radius: 2px; }
+.shape.hollow { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.t-work { color: var(--work); } .t-wait { color: var(--wait); } .t-fail { color: var(--fail); } .t-done { color: var(--done); } .t-idle { color: var(--idle); }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.tag { font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: .74rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.eyebrow { margin: 0; font-family: var(--display); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.empty { color: var(--faint); font-size: .86rem; margin: 0; }
+
+/* Board */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; align-items: start; }
+.col { display: grid; gap: 10px; min-width: 0; }
+.col-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.col-head .mono { margin-left: auto; }
+.card { width: 100%; text-align: left; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 7px; cursor: pointer; min-width: 0; }
+.card:hover { border-color: var(--faint); }
+.card.sel { border-color: var(--accent); }
+.card-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-top .mono { margin-left: auto; }
+.card-title { font-weight: 600; font-size: .95rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line { font-size: .84rem; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-line.needs { color: var(--wait); }
+.agents { display: grid; gap: 5px; margin: 0; padding: 8px 0 0; list-style: none; border-top: 1px dashed var(--line); }
+.agents li { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: .8rem; }
+.agents li .dot { transform: translateY(-1px); }
+.agents .what { color: var(--dim); }
+
+/* Lanes */
+.lanes { display: grid; min-width: 0; }
+.lanes-head, .lane { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; align-items: center; }
+.lanes-head { position: sticky; top: -16px; background: var(--panel); padding: 0 0 8px; z-index: 1; }
+.axis { position: relative; height: 16px; }
+.axis span { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--mono); font-size: .66rem; color: var(--faint); white-space: nowrap; }
+.axis span:last-child { transform: translateX(-100%); }
+.axis span:first-child { transform: none; }
+.lane { width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 10px 0; cursor: pointer; }
+.lane:hover .lane-name { text-decoration: underline; text-decoration-color: var(--faint); }
+.lane.sel .lane-name { color: var(--accent); }
+.lane-label { display: grid; gap: 3px; min-width: 0; }
+.lane-name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.track { position: relative; height: 54px; border-radius: 6px; background-color: var(--raise);
+  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: 25% 100%; }
+.tick { position: absolute; top: 6px; width: 2px; height: 10px; border-radius: 1px; background: var(--faint); }
+.tick.hot { background: var(--work); }
+.run { position: absolute; height: 13px; border-radius: 3px; font-family: var(--mono); font-size: .62rem; line-height: 13px; padding: 0 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--fg); }
+.run.live { background: color-mix(in srgb, var(--work) 30%, transparent); box-shadow: inset 0 0 0 1px var(--work); }
+.run.end { background: color-mix(in srgb, var(--done) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--done) 60%, transparent); color: var(--dim); }
+.run.bad { background: color-mix(in srgb, var(--fail) 20%, transparent); box-shadow: inset 0 0 0 1px var(--fail); }
+.mark { position: absolute; top: 4px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg); background: var(--dim); }
+.nowcap { position: absolute; right: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 6px 6px 0; background: var(--work); }
+.track .when { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+@media (max-width: 640px) {
+  .lanes-head, .lane { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .lanes-head .spacer { display: none; }
+}
+
+/* Rail */
+.rail section { display: grid; gap: 10px; }
+.row { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 7px 8px; margin: 0 -8px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; cursor: pointer; }
+.row:hover { background: var(--raise); }
+.row .sub { grid-column: 2 / 4; font-size: .8rem; color: var(--wait); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 600; padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--raise); border: 1px solid var(--line); }
+.detail-title { margin: 0; font-size: 1.15rem; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+dl { margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 7px 12px; font-size: .86rem; }
+dt { color: var(--faint); }
+dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+dd.needs { color: var(--wait); }
+.open { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--accent); color: var(--accent); border-radius: 8px; text-decoration: none; font-weight: 600; font-size: .86rem; }
+.open:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; font-size: .8rem; color: var(--dim); margin: 0; padding: 0; list-style: none; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.keys { font-size: .78rem; color: var(--faint); margin: 0; }
+.keys .k { color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 2px; }
+
+/* 3D layouts: the scene fills the stage; labels float over it (fixed colours: the scene is dark in either scheme). */
+#three { position: absolute; inset: 0; background: #05070f; }
+#three canvas { display: block; width: 100%; height: 100%; }
+#three-labels { position: absolute; inset: 0; pointer-events: none; }
+#three-labels .lbl[data-key] { pointer-events: auto; cursor: pointer; }
+#three-bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+  padding: 4px; border-radius: 999px; background: rgba(5, 8, 20, 0.66); border: 1px solid rgba(160, 180, 230, 0.25); color: #e6ecff;
+  font-size: .82rem; backdrop-filter: blur(6px); max-width: calc(100% - 24px); }
+#three-bar button { border: 0; background: transparent; color: #e6ecff; cursor: pointer; padding: 4px 10px; border-radius: 999px; }
+#three-bar button:hover { background: rgba(255, 255, 255, 0.1); }
+#three-bar span { padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#three-bar .mono { color: #9aa6c4; }
+#three-note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 440px; margin: 0; text-align: center; color: #9aa6c4; }
+.lbl { font-family: var(--body); white-space: nowrap; text-align: center; color: #e6ecff; text-shadow: 0 1px 3px #000, 0 0 10px #000; transform: translateY(-50%); }
+.lbl.agent .n { font-family: var(--display); font-size: 19px; font-weight: 600; color: #37d7ff; }
+.lbl.agent.idle .n { color: #f5b14c; }
+.lbl.agent .d { font-size: 15px; font-weight: 600; color: #f0f8ff; max-width: 230px; overflow: hidden; text-overflow: ellipsis; margin: 0 auto; }
+.lbl.agent .a { font-size: 12.5px; color: #cfe6ff; max-width: 230px; overflow: hidden; text-overflow: ellipsis; margin: 0 auto; }
+.lbl.agent .m { font-size: 12px; color: #a9b6dc; }
+.lbl .pb { width: 140px; height: 4px; margin: 5px auto 0; background: rgba(255, 255, 255, 0.18); border-radius: 2px; overflow: hidden; position: relative; }
+.lbl .pb i { position: absolute; inset: 0 auto 0 0; background: #37d7ff; border-radius: 2px; }
+.lbl.agent.idle .pb i { background: #f5b14c; }
+.lbl .pb.unknown i { width: 30%; animation: slide 1.6s ease-in-out infinite; }
+@keyframes slide { 0% { left: -30%; } 100% { left: 100%; } }
+.lbl.hub { font-size: 14px; color: #d4c2ff; }
+.lbl.hub.off { color: #a3a9c6; }
+.lbl.hub.need { color: #f6b84e; font-weight: 600; }
+.lbl.small { font-size: 12px; color: #c0c8e4; }
+.lbl.sname { font-family: var(--display); font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: #b3c3ff; font-weight: 600; }
+.lbl .place { font-family: var(--mono); font-size: .62rem; letter-spacing: .08em; color: #9fb0d9; border: 1px solid rgba(160, 180, 230, .4); border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: 2px; }
+.lbl.board { font-size: 12.5px; background: rgba(12, 6, 30, 0.72); border: 1px solid rgba(255, 60, 200, 0.45); border-radius: 8px; padding: 5px 10px; text-shadow: none; white-space: normal; max-width: 300px; }
+.lbl.board b { font-family: var(--display); color: #ff7ad9; font-weight: 600; letter-spacing: .08em; }
+#three[data-look="workshop"] .lbl.board { background: rgba(30, 22, 14, 0.72); border-color: rgba(255, 200, 120, 0.45); }
+#three[data-look="workshop"] .lbl.board b { color: #ffd27a; }
+#three[data-look="decks"] .lbl.board { border-color: rgba(120, 200, 255, 0.45); }
+#three[data-look="decks"] .lbl.board b { color: #7fdcff; }
+
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .lbl .pb.unknown i { animation: none; left: 0; } }
 </style>
 </head>
 <body>
-<div id="stage"></div>
-<div id="labels"></div>
-<div class="hud"><h1>AGENT DECK</h1><div class="sub" id="sub">Waiting for data…</div></div>
-<div class="bar">
-  <div class="themes" id="themes" title="Pick a look (1-4, or T to cycle)"></div>
-  <button id="bRotate" title="Move the camera by itself">Camera<kbd>R</kbd></button>
-  <button id="bPanel" title="Show or hide the list">List<kbd>L</kbd></button>
-  <button id="bFull" title="Fill the screen">Fullscreen<kbd>F</kbd></button>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Agent Deck</h1>
+      <p id="summary">Waiting for data…</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="views" role="group" aria-label="Layout">
+        <button id="view-decks" data-view="decks" aria-pressed="true">Decks <span class="k">1</span></button>
+        <button id="view-circuit" data-view="circuit" aria-pressed="false">Circuit <span class="k">2</span></button>
+        <button id="view-workshop" data-view="workshop" aria-pressed="false">Workshop <span class="k">3</span></button>
+        <button id="view-orbit" data-view="orbit" aria-pressed="false">Orbit <span class="k">4</span></button>
+        <button id="view-board" data-view="board" aria-pressed="false">Board <span class="k">5</span></button>
+        <button id="view-lanes" data-view="lanes" aria-pressed="false">Lanes <span class="k">6</span></button>
+      </div>
+      <div class="seg" id="ranges" role="group" aria-label="Time range">
+        <button id="range-day" data-range="day" aria-pressed="true">Today</button>
+        <button id="range-week" data-range="week" aria-pressed="false">This week</button>
+      </div>
+      <button class="btn" id="cam" title="Move the camera by itself, or hold it still (R)" hidden>Camera <span class="k">R</span></button>
+      <button class="btn" id="list" title="Show or hide the list (L)">List <span class="k">L</span></button>
+      <button class="btn" id="full" title="Fill the screen (F)">Fullscreen <span class="k">F</span></button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="main">
+    <section class="stage" aria-label="Sessions">
+      <div id="three" hidden aria-label="3D view of your sessions"><div id="three-labels"></div><p id="three-note" hidden></p>
+        <div id="three-bar" hidden><button id="f-prev" title="Previous session ([)" aria-label="Previous session">◀</button><span id="f-name"></span><button id="f-next" title="Next session (])" aria-label="Next session">▶</button></div></div>
+      <canvas id="orbit" aria-label="Orbit view of your sessions"></canvas>
+      <div class="pane" id="board" hidden></div>
+      <div class="pane" id="lanes" hidden></div>
+    </section>
+    <aside class="rail" id="rail" aria-live="polite"></aside>
+  </div>
 </div>
-<div id="panel"></div>
-<div id="note"></div>
-<div id="status">Connecting…</div>
 
 <script>
-// Data, the list and the controls. The Claude sessions write deck-data.js next to this page; it is read
-// again every second. Plain script, so the list keeps working even when the 3D part cannot load.
-// Open the page with #demo on the end to see it run on made-up agents.
+// The Claude sessions with the deck write deck-data.js next to this page; it is read again every second.
+// `sessions` is each open local session's own entry (its agents, live). `cloud` is the account's session list
+// from claude.ai, fetched by one of them every 20 seconds: cloud sessions, and local ones connected to claude.ai.
 (() => {
-  const STALE_MS = 45000
-  const THEMES = [['decks', 'Decks'], ['circuit', 'Circuit'], ['workshop', 'Workshop'], ['stage', 'Stage']]
-  const state = { data: null, receivedAt: 0 }
-  window.__deck = state
+  'use strict'
 
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-  const fmt = ms => {
-    const s = Math.max(0, Math.round(ms / 1000))
-    if (s < 60) return `${s}s`
-    const m = Math.floor(s / 60)
-    if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`
-    return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
-  }
-  window.__deckFmt = fmt
-  window.__deckEsc = esc
+  const VIEWS = ['decks', 'circuit', 'workshop', 'orbit', 'board', 'lanes']
+  const THREE_D = ['decks', 'circuit', 'workshop']
+  const DEMO = /demo/.test(location.hash)
+  const RANGE_MS = { day: 24 * 3600e3, week: 7 * 24 * 3600e3 }
+  const LANE_MS = 60 * 60e3
+  const LOCAL_STALE_MS = 60e3
 
-  // --- Theme choice: remembered in this browser, or named in the address (#theme=circuit) ---------------
-  const fromHash = /theme=(\w+)/.exec(location.hash)?.[1]
-  let saved = null
-  try { saved = localStorage.getItem('agent-deck-theme') } catch {}
-  let theme = THEMES.some(t => t[0] === fromHash) ? fromHash : THEMES.some(t => t[0] === saved) ? saved : THEMES[0][0]
-  window.__deckThemeId = theme
-  const bar = document.getElementById('themes')
-  function drawThemes() {
-    bar.innerHTML = THEMES.map(([id, name], i) =>
-      `<button data-id="${id}" class="${id === theme ? 'on' : ''}" title="${name} (${i + 1})">${name}</button>`).join('')
-  }
-  function pick(id) {
-    theme = id
-    try { localStorage.setItem('agent-deck-theme', id) } catch {}
-    drawThemes()
-    window.__deckScene?.setTheme(id)
-  }
-  bar.addEventListener('click', e => { const id = e.target.closest('button')?.dataset.id; if (id) pick(id) })
-  drawThemes()
-
-  function liveSessions() {
-    const all = Object.values(state.data?.sessions ?? {})
-    return all.filter(s => Date.now() - s.updatedAt < STALE_MS).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-  }
-  window.__deckSessions = liveSessions
-
-  function render() {
-    const sessions = liveSessions()
-    const now = Date.now()
-    let working = 0
-    let finished = 0
-    const html = sessions.map(s => {
-      const live = s.agents.filter(a => a.status === 'running' || a.status === 'idle')
-      const done = s.agents.filter(a => !(a.status === 'running' || a.status === 'idle'))
-      working += live.length
-      finished += done.length
-      const rows = live.map(a => {
-        const elapsed = a.startedAt ? `${fmt(now - a.startedAt)} so far` : 'running since before the deck loaded'
-        const known = typeof a.est?.fraction === 'number'
-        const bar = known
-          ? `<div class="prog"><i style="width:${Math.round(Math.min(1, a.est.fraction) * 100)}%"></i></div>`
-          : `<div class="prog unknown"><i></i></div>`
-        return `<div class="ag ${a.status}">
-          <div class="t"><span class="n">#${a.n}</span><span>${esc(a.description)}</span><span class="ty">${esc(a.type)}</span></div>
-          <div class="now">${a.status === 'idle' ? 'Waiting for a message' : esc(a.action || 'Starting up')}</div>
-          <div class="meta">${elapsed} · ${esc(a.est?.text ?? '')} · ${a.tools} tool calls</div>${bar}</div>`
-      }).join('')
-      const fins = done.map(a => {
-        const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'
-        const took = a.startedAt && a.endedAt ? ` · ${fmt(a.endedAt - a.startedAt)}` : ''
-        return `<div class="fin ${a.status}"><span class="m">${mark}</span><span>${esc(a.description)}${took}</span></div>`
-      }).join('')
-      const main = s.main.isWorking ? `Working${s.main.action ? `: ${esc(s.main.action)}` : ''}` : 'Waiting for you'
-      return `<div class="sess">
-        <h2><span>${esc(s.name)}</span><span class="main ${s.main.isWorking ? 'on' : ''}">${main}</span></h2>
-        ${rows || '<div class="empty">No agents working.</div>'}
-        ${fins ? `<div class="group">Finished</div>${fins}` : ''}
-        <div class="group">Ready to start</div><div class="types">${s.types.map(esc).join(' · ') || 'Listed after the session’s first turn.'}</div>
-      </div>`
-    }).join('')
-
-    document.getElementById('panel').innerHTML =
-      html || '<div class="empty">No Claude session is sending to this window. In a session, press <b>Pop out</b> on the Agent deck pane or type <b>/agent-deck-window</b>.</div>'
-    document.getElementById('sub').textContent =
-      `${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${working} working · ${finished} finished`
-
-    const age = now - state.receivedAt
-    const status = document.getElementById('status')
-    status.className = state.receivedAt && age < 5000 ? '' : 'warn'
-    status.textContent = demo ? 'Demo: made-up agents, to try the looks'
-      : !state.receivedAt ? 'No data yet: open it from a Claude session (Pop out, or /agent-deck-window).'
-      : age < 5000 ? `Live · ${new Date().toLocaleTimeString()}` : `No update for ${fmt(age)}. Is a session still open?`
-
-    window.__deckScene?.update(sessions)
+  const store = {
+    get(k) { try { return localStorage.getItem(k) } catch { return null } },
+    set(k, v) { try { localStorage.setItem(k, v) } catch { /* a convenience only */ } },
   }
 
-  window.__deckData = d => {
-    state.data = d
-    state.receivedAt = Date.now()
+  const S = {
+    data: null,
+    receivedAt: 0,
+    view: (() => {
+      // The 3D looks arrived after Orbit: open on them once, then keep whatever is picked.
+      if (!store.get('deck.seen3d')) { store.set('deck.seen3d', '1'); store.set('deck.view', 'decks'); return 'decks' }
+      return VIEWS.includes(store.get('deck.view')) ? store.get('deck.view') : 'decks'
+    })(),
+    range: store.get('deck.range') === 'week' ? 'week' : 'day',
+    selected: null,
+    localTicks: new Map(),
+  }
+  if (store.get('deck.norail') === '1') document.body.classList.add('norail')
+
+  // ---------- helpers ----------
+  const $ = id => document.getElementById(id)
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag)
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue
+      if (k === 'class') el.className = v
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v)
+      else el.setAttribute(k, v === true ? '' : String(v))
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid === undefined || kid === null || kid === false) continue
+      el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)))
+    }
+    return el
+  }
+  const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+  const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's')
+  function ago(t, now = Date.now()) {
+    if (!t) return '—'
+    const s = Math.max(0, Math.round((now - t) / 1000))
+    if (s < 10) return 'just now'
+    if (s < 60) return s + 's ago'
+    const m = Math.round(s / 60)
+    if (m < 60) return m + 'm ago'
+    const hr = Math.round(m / 60)
+    if (hr < 48) return hr + 'h ago'
+    return Math.round(hr / 24) + 'd ago'
+  }
+  function span(ms) {
+    const m = Math.max(0, Math.round(ms / 60e3))
+    if (m < 1) return 'under a minute'
+    if (m < 60) return m + 'm'
+    return Math.floor(m / 60) + 'h ' + (m % 60) + 'm'
   }
 
-  // --- Made-up agents for #demo -------------------------------------------------------------------------
-  const demo = /demo/.test(location.hash)
+  // ---------- one list from local entries and the cloud list ----------
+  const LABEL = { working: 'Working', blocked: 'Waiting for you', failed: 'Stopped with an error', done: 'Finished its turn', stopped: 'Stopped', idle: 'Open, ready for your next message' }
+  const TONE = { working: 'work', blocked: 'wait', failed: 'fail', done: 'done', stopped: 'idle', idle: 'idle' }
+  const group = st => st === 'working' ? 'work' : (st === 'blocked' || st === 'failed') ? 'wait' : 'recent'
+  const isLive = a => a.status === 'running' || a.status === 'idle'
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+  function sessions(now = Date.now()) {
+    const d = S.data || {}
+    const cloud = (d.cloud && Array.isArray(d.cloud.sessions)) ? d.cloud.sessions : []
+    const used = new Set()
+    const out = []
+
+    for (const e of Object.values(d.sessions || {})) {
+      if (!e || now - (e.updatedAt || 0) > LOCAL_STALE_MS) continue
+      const agents = e.agents || []
+      const working = !!(e.main && e.main.isWorking) || agents.some(a => a.status === 'running')
+      // The same session as claude.ai lists it, when it is connected there: same folder or repository.
+      const twin = cloud.find(c => !used.has(c.id) && c.place === 'local' && c.repo && norm(c.repo) === norm(e.name) && now - c.updatedAt < RANGE_MS.day)
+      if (twin) used.add(twin.id)
+      const status = working ? 'working' : twin && (twin.state === 'blocked' || twin.state === 'failed') ? twin.state : 'idle'
+      out.push({
+        key: 'local:' + e.id,
+        title: twin ? twin.title : e.name,
+        place: 'local', offline: false, fromPlugin: true,
+        status,
+        repo: twin ? twin.repo : e.name,
+        branch: twin ? twin.branch : undefined,
+        updatedAt: e.updatedAt,
+        createdAt: twin ? twin.createdAt : 0,
+        needs: twin ? twin.needs : undefined,
+        detail: twin ? twin.detail : undefined,
+        doing: e.main && e.main.action,
+        agents,
+        types: e.types || [],
+        cloudId: twin ? twin.id : undefined,
+        activity: S.localTicks.get(e.id) || [],
+      })
+    }
+
+    for (const c of cloud) {
+      if (used.has(c.id)) continue
+      out.push({
+        key: 'cloud:' + c.id,
+        title: c.title,
+        place: c.place, offline: !!c.offline, fromPlugin: false,
+        status: c.state,
+        repo: c.repo, branch: c.branch,
+        updatedAt: c.updatedAt, createdAt: c.createdAt,
+        needs: c.needs, detail: c.detail, doing: c.doing,
+        agents: c.agents || [],
+        types: [],
+        cloudId: c.id,
+        activity: c.activity || [],
+      })
+    }
+
+    const rank = { work: 0, wait: 1, recent: 2 }
+    return out
+      .filter(s => s.fromPlugin || s.status === 'working' || now - s.updatedAt <= RANGE_MS[S.range])
+      .sort((a, b) => rank[group(a.status)] - rank[group(b.status)] || b.updatedAt - a.updatedAt)
+  }
+
+  const agentsOf = s => ({
+    running: s.agents.filter(isLive),
+    finished: s.agents.filter(a => !isLive(a)).slice(0, 6),
+  })
+
+  // A local session's own activity: noted while it works, for the Lanes view.
+  function noteLocalActivity(now) {
+    for (const e of Object.values((S.data && S.data.sessions) || {})) {
+      if (!e || !e.main || !e.main.isWorking) continue
+      const ticks = S.localTicks.get(e.id) || []
+      if (!ticks.length || now - ticks[ticks.length - 1] > 15e3) ticks.push(now)
+      while (ticks.length && now - ticks[0] > LANE_MS) ticks.shift()
+      S.localTicks.set(e.id, ticks)
+    }
+  }
+
+  // ---------- data file ----------
+  window.__deckData = d => { S.data = d; S.receivedAt = Date.now() }
+
+  // #demo: made-up sessions and agents, to try the layouts.
   const demoStart = Date.now()
   function demoData() {
     const t = Date.now()
     const agent = (id, n, description, type, action, cycleMs, offsetMs, steps) => {
       const age = (t - demoStart + offsetMs) % cycleMs
       const f = age / cycleMs
-      const est = steps
-        ? { text: `~${fmt(cycleMs - age)} left (${Math.floor(f * steps)}/${steps} steps)`, fraction: f }
-        : { text: 'no estimate yet' }
+      const est = steps ? { text: '~' + span(cycleMs - age) + ' left (' + Math.floor(f * steps) + '/' + steps + ' steps)', fraction: f } : { text: 'no estimate yet' }
       return { id, n, description, type, status: 'running', action, startedAt: t - age, tools: 3 + Math.floor(age / 4000), est }
     }
-    const done = (id, description, status) => ({ id, n: 1, description, type: 'general-purpose', status,
-      startedAt: demoStart - 400000, endedAt: demoStart - 120000, tools: 20, est: { text: status } })
-    const types = ['general-purpose', 'Explore', 'Plan', 'claude-code-guide']
-    return { v: 1, sessions: {
-      s1: { id: 's1', name: 'licence-server', updatedAt: t, types,
-        main: { isWorking: true, action: 'Checking the 15s cut' },
-        agents: [
-          agent('a1', 1, 'Stem Splitter promo videos', 'general-purpose', 'Rendering the 28s cut', 90000, 30000, 7),
-          agent('a2', 2, 'DJ Master promo videos', 'general-purpose', 'Filming the requests promo', 120000, 0, 0),
-          agent('a3', 3, 'Find licence checks', 'Explore', 'Searching the code for "activate"', 60000, 45000, 4),
-          done('d1', 'Fix installer icon', 'done'),
-          done('d2', 'Sign the Mac build', 'failed'),
-        ] },
-    } }
+    const done = (id, description, status) => ({ id, n: 1, description, type: 'general-purpose', status, startedAt: demoStart - 400e3, endedAt: demoStart - 120e3, tools: 20, est: { text: status } })
+    return {
+      v: 1,
+      sessions: {
+        s1: { id: 's1', name: 'licence-server', updatedAt: t, types: ['general-purpose', 'Explore', 'Plan', 'claude-code-guide'],
+          main: { isWorking: true, action: 'Checking the 15s cut' },
+          agents: [
+            agent('a1', 1, 'Stem Splitter promo videos', 'general-purpose', 'Rendering the 28s cut', 90e3, 30e3, 7),
+            agent('a2', 2, 'DJ Master promo videos', 'general-purpose', 'Filming the requests promo', 120e3, 0, 0),
+            agent('a3', 3, 'Find licence checks', 'Explore', 'Searching the code for "activate"', 60e3, 45e3, 4),
+            done('d1', 'Fix installer icon', 'done'),
+            done('d2', 'Sign the Mac build', 'failed'),
+          ] },
+      },
+      cloud: { fetchedAt: t - 5e3, sessions: [
+        { id: 'c1', title: 'Release notes for 1.37', place: 'cloud', offline: false, state: 'working', repo: 'dj-master-releases', updatedAt: t, createdAt: t - 900e3,
+          doing: 'Writing the changelog', agents: [{ id: 'c1a', description: 'Collect merged changes', type: 'Explore', status: 'running', action: 'Reading git history', startedAt: t - 200e3, tools: 14 }] },
+        { id: 'c2', title: 'Instagram reel cut', place: 'cloud', offline: false, state: 'blocked', repo: 'yoshic-site', updatedAt: t - 600e3, createdAt: t - 3000e3,
+          needs: 'Which of the two edits do you want?', agents: [] },
+        { id: 'c3', title: 'Trading journal fixes', place: 'cloud', offline: false, state: 'done', repo: 'trading-journal', updatedAt: t - 7200e3, createdAt: t - 9000e3, detail: 'Fixed the CSV import', agents: [] },
+      ] },
+    }
   }
 
   function poll() {
-    if (demo) { window.__deckData(demoData()); return }
+    if (DEMO) { window.__deckData(demoData()); return }
     const s = document.createElement('script')
-    s.src = `deck-data.js?t=${Date.now()}`
+    s.src = 'deck-data.js?t=' + Date.now()
     s.onload = s.onerror = () => s.remove()
     document.head.appendChild(s)
   }
-  poll()
-  setInterval(() => { poll(); render() }, 1000)
-  render()
 
-  const toggleFull = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
-  const togglePanel = () => { document.body.classList.toggle('nopanel'); window.__deckScene?.resize() }
-  const toggleRotate = () => window.__deckScene?.toggleRotate()
-  document.getElementById('bFull').onclick = toggleFull
-  document.getElementById('bPanel').onclick = togglePanel
-  document.getElementById('bRotate').onclick = toggleRotate
+  // ---------- header, notice, rail ----------
+  function render() {
+    const now = Date.now()
+    noteLocalActivity(now)
+    for (const v of VIEWS) $('view-' + v).setAttribute('aria-pressed', String(S.view === v))
+    $('range-day').setAttribute('aria-pressed', String(S.range === 'day'))
+    $('range-week').setAttribute('aria-pressed', String(S.range === 'week'))
+    $('board').hidden = S.view !== 'board'
+    $('lanes').hidden = S.view !== 'lanes'
+    $('orbit').hidden = S.view !== 'orbit'
+    const is3d = THREE_D.includes(S.view)
+    $('three').hidden = !is3d
+    $('cam').hidden = !is3d
+    const list = sessions(now)
+    if (S.selected && !list.some(s => s.key === S.selected)) S.selected = null
+    renderSummary(list, now)
+    renderNotice(now)
+    if (S.view === 'board') renderBoard(list, now)
+    if (S.view === 'lanes') renderLanes(list, now)
+    if (S.view === 'orbit') ensureOrbit()
+    if (is3d) show3d(list, now)
+    else if (window.__deckScene) window.__deckScene.hide()
+    renderRail(list, now)
+  }
+
+  // ---------- 3D layouts: the sessions that are working or need you, and this computer's ----------
+  function scene3d(list) {
+    return list.filter(s => s.fromPlugin || group(s.status) !== 'recent').slice(0, 6).map(s => {
+      let n = 0
+      return {
+        id: s.key,
+        name: s.title,
+        place: s.place,
+        main: { isWorking: s.status === 'working', action: s.doing, needs: group(s.status) === 'wait' ? (s.needs || LABEL[s.status]) : '' },
+        types: s.types,
+        agents: s.agents.map(a => (isLive(a) ? { ...a, n: ++n } : a)),
+      }
+    })
+  }
+  // One session at a time, large: the one picked in the list, else each in turn every 20 seconds.
+  const CYCLE_MS = 20e3
+  let focusIdx = 0
+  let focusAt = Date.now()
+  function focus3d(all, now) {
+    const picked = all.find(s => s.id === S.selected)
+    if (picked) return { shown: [picked], auto: false, i: all.indexOf(picked) }
+    if (!all.length) return { shown: [], auto: false, i: 0 }
+    if (all.length > 1 && now - focusAt > CYCLE_MS) { focusIdx++; focusAt = now }
+    const i = ((focusIdx % all.length) + all.length) % all.length
+    return { shown: [all[i]], auto: all.length > 1, i }
+  }
+  function step(by) {
+    const all = scene3d(sessions())
+    if (!all.length) return
+    const cur = all.findIndex(s => s.id === S.selected)
+    focusIdx = (cur >= 0 ? cur : focusIdx) + by
+    focusAt = Date.now()
+    S.selected = null
+    render()
+  }
+  $('f-prev').addEventListener('click', () => step(-1))
+  $('f-next').addEventListener('click', () => step(1))
+  window.__deckNow3d = () => (THREE_D.includes(S.view) ? { view: S.view, sessions: focus3d(scene3d(sessions()), Date.now()).shown } : null)
+  window.__deckSelect = key => select(key)
+  const loadedAt = Date.now()
+  function show3d(list, now) {
+    const note = $('three-note')
+    const all = scene3d(list)
+    const { shown, auto, i } = focus3d(all, now)
+    const bar = $('three-bar')
+    bar.hidden = all.length === 0
+    if (all.length) {
+      $('f-name').replaceChildren(shown[0].name, ' ', h('span', { class: 'mono' },
+        (all.length > 1 ? (i + 1) + ' of ' + all.length : 'the only one active') +
+        (auto ? ' · next in ' + Math.max(1, Math.ceil((CYCLE_MS - (now - focusAt)) / 1000)) + 's' : all.length > 1 ? ' · held' : '')))
+      $('f-prev').hidden = $('f-next').hidden = all.length < 2
+    }
+    if (window.__deckScene) { note.hidden = !!all.length; if (!all.length) note.textContent = 'Nothing is working or waiting on you right now. Sessions show here while they are.'; window.__deckScene.show(S.view, shown); return }
+    note.hidden = now - loadedAt < 8000
+    note.textContent = 'The 3D layouts load three.js from the internet the first time, and it has not arrived. Orbit, Board and Lanes (4-6) work without it.'
+  }
+
+  function renderSummary(list, now) {
+    const el = $('summary')
+    if (!S.receivedAt) { el.textContent = 'Waiting for data…'; return }
+    const work = list.filter(s => s.status === 'working').length
+    const wait = list.filter(s => group(s.status) === 'wait').length
+    const agents = list.reduce((n, s) => n + agentsOf(s).running.length, 0)
+    const cloud = S.data && S.data.cloud
+    el.replaceChildren(
+      [plural(list.length, 'session'), work + ' working', wait + (wait === 1 ? ' needs you' : ' need you'), plural(agents, 'agent') + ' running'].join(' · '),
+      ' · ',
+      cloud ? h('span', { class: cloud.error ? 'warn' : '' }, 'cloud ' + (cloud.error ? 'not updating' : 'checked ' + ago(cloud.fetchedAt, now))) : 'cloud loading…')
+  }
+
+  function renderNotice(now) {
+    const el = $('notice')
+    const age = now - S.receivedAt
+    const cloud = S.data && S.data.cloud
+    let tone = null
+    let text = ''
+    if (!S.receivedAt) { tone = 'idle'; text = 'No Claude session is sending to this window yet. In a session, press Pop out on the Agent deck pane or type /agent-deck-window.' }
+    else if (age > 8000) { tone = 'wait'; text = 'No update for ' + span(age) + '. Is a Claude session with the deck still open?' }
+    else if (cloud && cloud.error) { tone = 'fail'; text = 'Cloud sessions: ' + cloud.error + (cloud.sessions.length ? ' Showing the last list.' : '') }
+    el.hidden = !tone
+    if (tone) el.replaceChildren(h('span', { class: 'dot t-' + tone }), h('p', null, text))
+  }
+
+  const shapeEl = s => h('span', { class: 'shape ' + s.place + (s.offline ? ' hollow' : '') + ' t-' + TONE[s.status], 'aria-hidden': 'true' })
+  const placeText = s => s.place === 'local' ? (s.offline ? 'Local · offline' : 'Local') : 'Cloud'
+  const when = (s, now) => s.fromPlugin ? 'open now' : ago(s.updatedAt, now)
+  function select(key) { S.selected = S.selected === key ? null : key; render() }
+
+  function renderRail(list, now) {
+    const rail = $('rail')
+    const s = S.selected && list.find(x => x.key === S.selected)
+    if (s) { rail.replaceChildren(...detail(s, now)); return }
+
+    const waiting = list.filter(x => group(x.status) === 'wait')
+    const blocks = [h('section', null,
+      h('h2', { class: 'eyebrow' }, h('span', { class: 'dot t-wait' }), 'Needs you'),
+      waiting.length
+        ? waiting.map(x => h('button', { class: 'row', onclick: () => select(x.key) },
+            shapeEl(x), h('span', { class: 'clip' }, x.title), h('span', { class: 'mono' }, when(x, now)),
+            h('span', { class: 'sub' }, x.needs || x.detail || LABEL[x.status])))
+        : h('p', { class: 'empty' }, 'Nothing is waiting on you.'))]
+    if ((S.view === 'orbit' || THREE_D.includes(S.view)) && list.length) {
+      blocks.push(h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Sessions'),
+        list.map(x => h('button', { class: 'row', onclick: () => select(x.key) },
+          shapeEl(x), h('span', { class: 'clip' }, x.title),
+          h('span', { class: 'mono' }, x.status === 'working' ? plural(agentsOf(x).running.length, 'agent') : when(x, now))))))
+    }
+    blocks.push(h('section', null,
+      h('h2', { class: 'eyebrow' }, 'Key'),
+      h('ul', { class: 'legend' },
+        h('li', null, h('span', { class: 'shape cloud t-idle' }), 'Cloud session'),
+        h('li', null, h('span', { class: 'shape local t-idle' }), 'Local session'),
+        h('li', null, h('span', { class: 'shape local hollow t-idle' }), 'Computer offline'),
+        h('li', null, h('span', { class: 'dot t-work' }), 'Working · agents'),
+        h('li', null, h('span', { class: 'dot t-wait' }), 'Waiting for you'),
+        h('li', null, h('span', { class: 'dot t-fail' }), 'Stopped with an error'),
+        h('li', null, h('span', { class: 'dot t-done' }), 'Finished'),
+        h('li', null, h('span', { class: 'dot t-idle' }), 'Idle'),
+      ),
+      h('p', { class: 'keys' }, h('span', { class: 'k' }, '1'), '–', h('span', { class: 'k' }, '6'), ' layouts  ', h('span', { class: 'k' }, 'R'), ' camera  ',
+        h('span', { class: 'k' }, 'L'), ' list  ', h('span', { class: 'k' }, 'F'), ' fullscreen  ', h('span', { class: 'k' }, 'Esc'), ' close'),
+    ))
+    rail.replaceChildren(...blocks)
+  }
+
+  function agentLine(a, now) {
+    if (a.status === 'idle') return 'Waiting for a message'
+    const bits = [a.action || 'Starting up']
+    if (a.startedAt) bits.push(span(now - a.startedAt))
+    if (a.est && a.est.text) bits.push(a.est.text)
+    return bits.join(' · ')
+  }
+
+  function detail(s, now) {
+    const { running, finished } = agentsOf(s)
+    const rows = [
+      ['Where', s.place === 'local' ? (s.offline ? 'Your computer (offline)' : 'Your computer') : 'Cloud'],
+      s.repo ? ['Project', s.repo + (s.branch ? ' · ' + s.branch : '')] : null,
+      s.doing ? [s.status === 'working' ? 'Doing' : 'Last task', s.doing] : null,
+      s.needs ? ['Needs you', s.needs, 'needs'] : null,
+      s.detail ? ['Last turn', s.detail] : null,
+      ['Updated', when(s, now)],
+      s.createdAt ? ['Started', ago(s.createdAt, now)] : null,
+      s.types.length ? ['Can start', s.types.join(' · ')] : null,
+    ].filter(Boolean)
+    const items = [
+      ...running.map(a => h('li', null, h('span', { class: 'dot ' + (a.status === 'idle' ? 't-wait' : 't-work pulse') }),
+        h('span', null, a.description || 'Agent', h('br'), h('span', { class: 'what' }, agentLine(a, now))))),
+      ...finished.map(a => h('li', null, h('span', { class: 'dot t-' + (a.status === 'failed' ? 'fail' : a.status === 'stopped' ? 'idle' : 'done') }),
+        h('span', { class: 'what' }, (a.description || 'Agent') + ' · ' + (a.status === 'failed' ? 'failed' : a.status === 'stopped' ? 'stopped' : 'finished') +
+          (a.startedAt && a.endedAt ? ' · took ' + span(a.endedAt - a.startedAt) : '')))),
+    ]
+    return [
+      h('div', { class: 'detail-head' },
+        h('span', { class: 'pill' }, h('span', { class: 'dot t-' + TONE[s.status] + (s.status === 'working' ? ' pulse' : '') }), LABEL[s.status]),
+        h('button', { class: 'btn', onclick: () => select(null) }, 'Close')),
+      h('h2', { class: 'detail-title' }, s.title),
+      h('dl', null, rows.map(([k, v, cls]) => [h('dt', null, k), h('dd', { class: cls || '' }, v)])),
+      h('section', null,
+        h('h2', { class: 'eyebrow' }, 'Agents'),
+        items.length ? h('ul', { class: 'agents' }, items)
+          : h('p', { class: 'empty' }, s.status === 'working' ? 'No agents seen yet.' : 'Agents show here while the session is working.')),
+      s.cloudId ? h('a', { class: 'open', href: 'https://claude.ai/code/' + encodeURIComponent(s.cloudId), target: '_blank', rel: 'noopener' }, 'Open on claude.ai ↗') : null,
+    ]
+  }
+
+  // ---------- Board ----------
+  function renderBoard(list, now) {
+    const cols = [
+      ['work', 'Working', list.filter(s => group(s.status) === 'work'), 'Nothing is running right now.'],
+      ['wait', 'Needs you', list.filter(s => group(s.status) === 'wait'), 'Nothing is waiting on you.'],
+      ['idle', 'Recent', list.filter(s => group(s.status) === 'recent'), S.range === 'day' ? 'No other sessions today.' : 'No other sessions this week.'],
+    ]
+    $('board').replaceChildren(h('div', { class: 'cols' }, cols.map(([t, name, items, none]) =>
+      h('div', { class: 'col' },
+        h('div', { class: 'col-head' }, h('span', { class: 'dot t-' + t }), h('h2', { class: 'eyebrow' }, name), h('span', { class: 'mono' }, String(items.length))),
+        items.length ? items.map(s => card(s, now)) : h('p', { class: 'empty' }, none)))))
+  }
+
+  function card(s, now) {
+    const { running, finished } = agentsOf(s)
+    const line = s.needs
+      ? h('div', { class: 'card-line needs' }, s.needs)
+      : h('div', { class: 'card-line' }, s.status === 'working' ? s.doing || 'Working' : s.detail || s.doing || LABEL[s.status])
+    const rows = [
+      ...running.map(a => h('li', null, h('span', { class: 'dot ' + (a.status === 'idle' ? 't-wait' : 't-work pulse') }),
+        h('span', { class: 'clip' }, a.description || 'Agent', ' ', h('span', { class: 'what' }, '· ' + (a.status === 'idle' ? 'waiting' : a.action || 'starting up'))))),
+      ...finished.slice(0, 2).map(a => h('li', null, h('span', { class: 'dot t-' + (a.status === 'failed' ? 'fail' : 'done') }), h('span', { class: 'clip what' }, a.description || 'Agent'))),
+    ]
+    return h('button', { class: 'card' + (S.selected === s.key ? ' sel' : ''), onclick: () => select(s.key) },
+      h('div', { class: 'card-top' }, shapeEl(s), h('span', { class: 'tag' }, placeText(s)), h('span', { class: 'mono' }, when(s, now))),
+      h('div', { class: 'card-title' }, s.title),
+      s.repo && s.repo !== s.title ? h('div', { class: 'mono clip' }, s.repo + (s.branch ? ' · ' + s.branch : '')) : null,
+      line,
+      rows.length ? h('ul', { class: 'agents' }, rows) : null)
+  }
+
+  // ---------- Lanes ----------
+  function renderLanes(list, now) {
+    const from = now - LANE_MS
+    const x = t => Math.max(0, Math.min(100, ((t - from) / LANE_MS) * 100))
+    const head = h('div', { class: 'lanes-head' }, h('div', { class: 'spacer mono' }, 'Session'),
+      h('div', { class: 'axis' }, ['60m ago', '45m', '30m', '15m', 'now'].map((t, i) => h('span', { style: 'left:' + (i * 25) + '%' }, t))))
+    const lanes = list.map(s => {
+      const marks = []
+      for (const t of s.activity) if (t >= from) marks.push(h('span', { class: 'tick' + (now - t < 120e3 ? ' hot' : ''), style: 'left:' + x(t) + '%' }))
+      const { running, finished } = agentsOf(s)
+      const runs = [...running, ...finished].filter(a => a.startedAt && (isLive(a) || (a.endedAt || a.startedAt) >= from)).slice(0, 6)
+      runs.forEach((a, i) => {
+        const end = isLive(a) ? now : Math.max(a.endedAt || 0, a.startedAt + 30e3)
+        const left = x(a.startedAt)
+        const width = Math.max(1.2, x(end) - left)
+        const cls = isLive(a) ? 'live' : a.status === 'failed' ? 'bad' : 'end'
+        marks.push(h('span', { class: 'run ' + cls, style: 'left:' + left + '%;width:' + width + '%;top:' + (21 + (i % 2) * 15) + 'px', title: a.description }, a.description || 'Agent'))
+      })
+      if (!s.activity.length && !s.fromPlugin && s.updatedAt >= from) marks.push(h('span', { class: 'mark', style: 'left:' + x(s.updatedAt) + '%' }))
+      if (s.status === 'working') marks.push(h('span', { class: 'nowcap pulse' }))
+      if (!marks.length) marks.push(h('span', { class: 'when' }, s.fromPlugin ? 'open, quiet' : 'last active ' + ago(s.updatedAt, now)))
+      return h('button', { class: 'lane' + (S.selected === s.key ? ' sel' : ''), onclick: () => select(s.key) },
+        h('div', { class: 'lane-label' },
+          h('div', { class: 'lane-name' }, shapeEl(s), h('span', { class: 'clip' }, s.title)),
+          h('div', { class: 'mono clip' }, placeText(s) + ' · ' + LABEL[s.status] + (s.repo && s.repo !== s.title ? ' · ' + s.repo : ''))),
+        h('div', { class: 'track' }, marks))
+    })
+    $('lanes').replaceChildren(h('div', { class: 'lanes' }, head, lanes.length ? lanes : h('p', { class: 'empty' }, 'No sessions in this range.')))
+  }
+
+  // ---------- Orbit (canvas) ----------
+  const cv = $('orbit')
+  const ctx = cv.getContext('2d')
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)')
+  const col = {}
+  let hits = []
+  let hovered = null
+  let orbitRunning = false
+  let cachedList = []
+  let cachedAt = 0
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement)
+    for (const k of ['panel', 'raise', 'line', 'fg', 'dim', 'faint', 'accent', 'work', 'wait', 'done', 'fail', 'idle']) col[k] = cs.getPropertyValue('--' + k).trim()
+  }
+  function alpha(hex, a) {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
+    if (!m) return hex
+    const n = parseInt(m[1], 16)
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'
+  }
+  function ensureOrbit() {
+    if (orbitRunning || S.view !== 'orbit') return
+    orbitRunning = true
+    requestAnimationFrame(frame)
+  }
+  function frame(t) {
+    if (S.view !== 'orbit' || document.hidden) { orbitRunning = false; return }
+    drawOrbit(reduceMotion.matches ? 0 : t / 1000)
+    requestAnimationFrame(frame)
+  }
+  function shapePath(place, x, y, r) {
+    ctx.beginPath()
+    if (place === 'local') {
+      if (ctx.roundRect) ctx.roundRect(x - r, y - r, r * 2, r * 2, r * 0.3)
+      else ctx.rect(x - r, y - r, r * 2, r * 2)
+    } else ctx.arc(x, y, r, 0, Math.PI * 2)
+  }
+  function label(text, x, y, font, color) {
+    ctx.font = font
+    ctx.lineWidth = 4
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = alpha(col.panel, 0.92)
+    ctx.strokeText(text, x, y)
+    ctx.fillStyle = color
+    ctx.fillText(text, x, y)
+  }
+
+  function drawOrbit(sec) {
+    const dpr = Math.min(2, devicePixelRatio || 1)
+    const W = cv.clientWidth
+    const H = cv.clientHeight
+    if (!W || !H) return
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr) }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+
+    const now = Date.now()
+    if (now - cachedAt > 500) { cachedList = sessions(now); cachedAt = now }
+    const list = cachedList
+    const compact = W < 640
+    const cx = W / 2
+    const cy = H / 2 + (compact ? 22 : 14)
+    const padX = compact ? 46 : 190
+    const padY = compact ? 150 : 130
+    const tilt = Math.max(0.5, Math.min(0.92, (H - padY) / Math.max(1, W - padX)))
+    const R = Math.max(70, Math.min((W - padX) / 2, (H - padY) / 2 / tilt))
+    const rings = [
+      { key: 'work', r: R * 0.36, name: 'WORKING', speed: 1 / 240, size: 13 },
+      { key: 'wait', r: R * 0.67, name: 'NEEDS YOU', speed: -1 / 360, size: 11 },
+      { key: 'recent', r: R, name: 'RECENT', speed: 1 / 720, size: 8 },
+    ]
+
+    for (const ring of rings) {
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, ring.r, ring.r * tilt, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? alpha(col.work, 0.35) : ring.key === 'wait' ? alpha(col.wait, 0.22) : col.line
+      ctx.lineWidth = ring.key === 'work' ? 1.5 : 1
+      ctx.setLineDash(ring.key === 'recent' ? [3, 5] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+    // Which ring is which, in the corner rather than on the rings, so planets never sit on it.
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    rings.forEach((ring, i) => {
+      const y0 = 22 + i * 17
+      ctx.beginPath()
+      ctx.ellipse(24, y0, 7, 7 * 0.6, 0, 0, Math.PI * 2)
+      ctx.strokeStyle = ring.key === 'work' ? col.work : ring.key === 'wait' ? col.wait : col.faint
+      ctx.lineWidth = 1.5
+      ctx.setLineDash(ring.key === 'recent' ? [2, 2] : [])
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.font = '500 10px JetBrains Mono, ui-monospace, monospace'
+      ctx.fillStyle = col.faint
+      ctx.fillText((i === 0 ? 'INNER · ' : i === 1 ? 'MIDDLE · ' : 'OUTER · ') + ring.name, 38, y0 + 1)
+    })
+    ctx.textBaseline = 'alphabetic'
+
+    const placed = []
+    for (const ring of rings) {
+      const items = list.filter(s => group(s.status) === ring.key)
+      const n = items.length
+      const turn = sec * ring.speed * Math.PI * 2
+      items.forEach((s, j) => {
+        const a = -Math.PI / 2 + turn + (j * Math.PI * 2) / Math.max(1, n) + (ring.key === 'wait' ? Math.PI / Math.max(2, n) : 0)
+        const depth = Math.sin(a)
+        placed.push({ s, ring, n, x: cx + ring.r * Math.cos(a), y: cy + ring.r * Math.sin(a) * tilt, depth, r: ring.size * (1 + 0.14 * depth) })
+      })
+    }
+
+    for (const p of placed) {
+      if (p.ring.key !== 'work') continue
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(p.x, p.y)
+      ctx.strokeStyle = alpha(col.work, 0.45)
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 7])
+      ctx.lineDashOffset = -sec * 14
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, 24, 0, Math.PI * 2)
+    ctx.fillStyle = col.raise
+    ctx.fill()
+    ctx.strokeStyle = col.line
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '600 12px Chakra Petch, ui-sans-serif, sans-serif'
+    ctx.fillStyle = col.dim
+    ctx.fillText('YOU', cx, cy + 1)
+    ctx.textBaseline = 'alphabetic'
+
+    hits = []
+    placed.sort((a, b) => a.depth - b.depth)
+    const pulse = 0.5 + 0.5 * Math.sin(sec * 3)
+    for (const p of placed) {
+      const { s, x, y, r } = p
+      const c = col[TONE[s.status]] || col.idle
+      const isSel = S.selected === s.key
+      const isHover = hovered === s.key
+      const running = s.status === 'working' ? agentsOf(s).running : []
+
+      if (running.length) {
+        ctx.beginPath()
+        ctx.ellipse(x, y, r + 15, (r + 15) * 0.55, 0, 0, Math.PI * 2)
+        ctx.strokeStyle = alpha(col.work, 0.25)
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+      if (s.status === 'working' || group(s.status) === 'wait') {
+        shapePath(s.place, x, y, r + 4 + pulse * 4)
+        ctx.strokeStyle = alpha(c, 0.15 + 0.25 * (1 - pulse))
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+      ctx.save()
+      if (s.status === 'working') { ctx.shadowColor = c; ctx.shadowBlur = 14 + 8 * pulse }
+      shapePath(s.place, x, y, r)
+      if (s.offline) { ctx.lineWidth = 2.5; ctx.strokeStyle = c; ctx.stroke() }
+      else { ctx.fillStyle = group(s.status) === 'recent' ? alpha(c, 0.75) : c; ctx.fill() }
+      ctx.restore()
+      if (isSel || isHover) {
+        shapePath(s.place, x, y, r + 5)
+        ctx.strokeStyle = isSel ? col.accent : col.fg
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+
+      // Agents as moons: white while running, amber while waiting for a message.
+      running.forEach((a, k) => {
+        const ang = sec * (Math.PI * 2 / 7) + (k * Math.PI * 2) / running.length
+        const mx = x + (r + 15) * Math.cos(ang)
+        const my = y + (r + 15) * 0.55 * Math.sin(ang)
+        ctx.save()
+        ctx.shadowColor = a.status === 'idle' ? col.wait : col.work
+        ctx.shadowBlur = 8
+        ctx.beginPath()
+        ctx.arc(mx, my, 3.4, 0, Math.PI * 2)
+        ctx.fillStyle = a.status === 'idle' ? col.wait : col.fg
+        ctx.fill()
+        ctx.restore()
+      })
+
+      const showLabel = isSel || isHover || (compact ? p.ring.key === 'work' : (p.ring.key !== 'recent' || p.n <= 9))
+      if (showLabel) {
+        const max = compact ? 20 : p.ring.key === 'recent' ? 22 : 28
+        // Upper half of a ring: label above the planet, so it never runs into the hub or an inner ring.
+        const above = p.depth < -0.25
+        const gap = r + (running.length ? 14 : 6)
+        ctx.textAlign = 'center'
+        label(clip(s.title, isHover || isSel ? 60 : max), x, above ? y - gap - 16 : y + gap + 11,
+          '600 12px Figtree, ui-sans-serif, sans-serif', p.ring.key === 'recent' && !isHover && !isSel ? col.dim : col.fg)
+        const sub = (s.place === 'local' ? (s.offline ? 'LOCAL · OFFLINE' : 'LOCAL') : 'CLOUD') + ' · ' +
+          (running.length ? plural(running.length, 'agent').toUpperCase() : when(s, now).toUpperCase())
+        label(sub, x, above ? y - gap - 3 : y + gap + 25, '500 9.5px JetBrains Mono, ui-monospace, monospace', col.faint)
+      }
+      hits.push({ key: s.key, x, y, r: r + 10 })
+    }
+
+    if (!list.length) {
+      ctx.textAlign = 'center'
+      label(S.receivedAt ? (S.range === 'day' ? 'No sessions in the last day' : 'No sessions this week') : 'Waiting for data…',
+        cx, cy + 52, '500 13px Figtree, ui-sans-serif, sans-serif', col.dim)
+    }
+  }
+
+  function hitAt(ev) {
+    const rect = cv.getBoundingClientRect()
+    const x = ev.clientX - rect.left
+    const y = ev.clientY - rect.top
+    let best = null
+    let bestD = Infinity
+    for (const p of hits) {
+      const d = Math.hypot(p.x - x, p.y - y)
+      if (d <= p.r && d < bestD) { best = p.key; bestD = d }
+    }
+    return best
+  }
+  cv.addEventListener('pointermove', ev => { hovered = hitAt(ev); cv.style.cursor = hovered ? 'pointer' : 'default' })
+  cv.addEventListener('pointerleave', () => { hovered = null })
+  cv.addEventListener('click', ev => { const k = hitAt(ev); if (k) select(k); else if (S.selected) select(null) })
+
+  // ---------- controls ----------
+  function setView(v) { S.view = v; store.set('deck.view', v); render() }
+  function setRange(r) { S.range = r; store.set('deck.range', r); cachedAt = 0; render() }
+  function toggleRail() { const off = document.body.classList.toggle('norail'); store.set('deck.norail', off ? '1' : '0') }
+  function fullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {})
+  }
+  $('views').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view) })
+  $('ranges').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setRange(b.dataset.range) })
+  $('list').addEventListener('click', toggleRail)
+  $('cam').addEventListener('click', () => window.__deckScene && window.__deckScene.toggleRotate())
+  $('full').addEventListener('click', fullscreen)
   addEventListener('keydown', e => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.toLowerCase()
-    if (k === 'f') toggleFull()
-    else if (k === 'l') togglePanel()
-    else if (k === 'r') toggleRotate()
-    else if (k === 't') pick(THEMES[(THEMES.findIndex(x => x[0] === theme) + 1) % THEMES.length][0])
-    else if (/^[1-9]$/.test(k) && THEMES[Number(k) - 1]) pick(THEMES[Number(k) - 1][0])
+    if (/^[1-6]$/.test(k)) setView(VIEWS[Number(k) - 1])
+    else if (k === 'r') window.__deckScene && window.__deckScene.toggleRotate()
+    else if ((k === '[' || k === 'arrowleft') && THREE_D.includes(S.view)) step(-1)
+    else if ((k === ']' || k === 'arrowright') && THREE_D.includes(S.view)) step(1)
+    else if (k === 't') setView(VIEWS[(VIEWS.indexOf(S.view) + 1) % VIEWS.length])
+    else if (k === 'l') toggleRail()
+    else if (k === 'f') fullscreen()
+    else if (k === 'escape' && S.selected) select(null)
   })
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render() })
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render)
 
-  setTimeout(() => {
-    if (window.__deckScene) return
-    const note = document.getElementById('note')
-    note.style.display = 'block'
-    note.textContent = 'The 3D view could not load (it fetches three.js from the internet the first time). The list on the right still updates.'
-  }, 8000)
+  readColors()
+  poll()
+  render()
+  setInterval(() => { poll(); render() }, 1000)
 })()
 </script>
-
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -281,6 +958,7 @@
 } }
 </script>
 <script type="module">
+// The 3D layouts (Decks, Circuit, Workshop). Loaded from the internet the first time; the other layouts work without it.
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
@@ -289,8 +967,15 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 
-const fmt = window.__deckFmt
-const esc = window.__deckEsc
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+const fmt = ms => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
+}
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const COLOR = {
@@ -298,16 +983,16 @@ const COLOR = {
   type: 0x7b86a6, main: 0xb48cff, mainOff: 0x5d6280, rim: 0x3a7bff,
 }
 
-// --- Renderer, camera, effects ----------------------------------------------
-const stage = document.getElementById('stage')
+// --- Renderer, camera, effects, sized to the stage ---------------------------
+const host = document.getElementById('three')
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
-stage.appendChild(renderer.domElement)
+host.prepend(renderer.domElement)
 
-const labels = new CSS2DRenderer({ element: document.getElementById('labels') })
+const labels = new CSS2DRenderer({ element: document.getElementById('three-labels') })
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1200)
 const controls = new OrbitControls(camera, renderer.domElement)
@@ -323,7 +1008,7 @@ let resumeTimer = 0
 let zoomed = false
 controls.addEventListener('start', () => { interacting = true; controls.autoRotate = false; clearTimeout(resumeTimer) })
 controls.addEventListener('end', () => {
-  resumeTimer = setTimeout(() => { interacting = false; controls.autoRotate = rotateWanted && !theme?.sway }, 8000)
+  resumeTimer = setTimeout(() => { interacting = false; controls.autoRotate = theme ? circling() : false }, 8000)
 })
 renderer.domElement.addEventListener('wheel', () => { zoomed = true }, { passive: true })
 
@@ -381,8 +1066,12 @@ function finishedSummary(list) {
   const parts = [['done', '✓'], ['failed', '✕'], ['stopped', '■']].filter(([st]) => count(st)).map(([st, m]) => `${m} ${count(st)}`)
   return `<b>FINISHED</b> ${parts.join(' · ')}<br>${list.slice(0, 4).map(a => esc(a.description)).join('<br>')}`
 }
-const typesHtml = types => `<b>READY TO START</b><br>${types.slice(0, 8).map(esc).join(' · ') || 'listed after the first turn'}`
-const hubText = s => (s.main.isWorking ? `Main session · ${esc(s.main.action || 'working')}` : 'Main session · waiting for you')
+const typesHtml = (types, place) => `<b>READY TO START</b><br>${types.slice(0, 8).map(esc).join(' · ') ||
+  (place === 'cloud' ? 'not reported for cloud sessions' : 'listed after the first turn')}`
+const hubText = s => (s.main.needs ? `Needs you · ${esc(clip(s.main.needs, 70))}`
+  : s.main.isWorking ? `Working · ${esc(clip(s.main.action || 'on it', 70))}` : 'Waiting for your next message')
+const hubClass = s => `lbl hub${s.main.needs ? ' need' : s.main.isWorking ? '' : ' off'}`
+const nameHtml = s => `${esc(clip(s.name, 44))} <span class="place">${s.place === 'cloud' ? 'cloud' : 'local'}</span>`
 
 function disposeTree(obj) {
   obj.traverse(o => {
@@ -647,9 +1336,9 @@ function decksUnit() {
     update(s, now) {
       working = s.main.isWorking
       meterMat.color.setHex(working ? COLOR.main : COLOR.mainOff)
-      hubTag.element.className = `lbl hub${working ? '' : ' off'}`
+      hubTag.element.className = hubClass(s)
       hubTag.element.innerHTML = hubText(s)
-      nameTag.element.textContent = s.name
+      nameTag.element.innerHTML = nameHtml(s)
 
       const live = liveOf(s)
       sync(decks, live, () => makeTurntable(), group)
@@ -663,9 +1352,11 @@ function decksUnit() {
 
       const fin = doneOf(s)
       finCrate.fill(fin)
-      finCrate.tag.element.innerHTML = finishedSummary(fin) || '<b>FINISHED</b> none yet'
+      finCrate.tag.element.innerHTML = finishedSummary(fin)
+      finCrate.group.visible = finCrate.tag.visible = fin.length > 0
       typeCrate.fill(s.types.map(name => ({ id: name })))
-      typeCrate.tag.element.innerHTML = typesHtml(s.types)
+      typeCrate.tag.element.innerHTML = typesHtml(s.types, s.place)
+      typeCrate.group.visible = typeCrate.tag.visible = s.types.length > 0
     },
     tick(dt, t) {
       const w = easeTo(table.scale.x, half * 2, dt, 3)
@@ -685,7 +1376,7 @@ function decksUnit() {
 }
 
 const DECKS = {
-  id: 'decks', spacing: 26, view: [0, 7.5, 11], dist: 15, targetY: 1.1, sway: 0.6, bloom: [0.6, 0.5, 0.3], exposure: 1.05,
+  id: 'decks', spacing: 19, halfWidth: 8, view: [0, 7.5, 11], dist: 15, targetY: 1.1, sway: 0.6, bloom: [0.6, 0.5, 0.3], exposure: 1.05,
   world(root) {
     scene.background = new THREE.Color(0x07040e)
     scene.fog = new THREE.FogExp2(0x07040e, 0.018)
@@ -938,7 +1629,7 @@ function circuitUnit() {
       coreMat.color.setHex(working ? COLOR.main : COLOR.mainOff)
       coreMat.emissive.setHex(working ? COLOR.main : 0x000000)
       shell.material.color.setHex(working ? COLOR.main : COLOR.mainOff)
-      hubTag.element.className = `lbl hub${working ? '' : ' off'}`
+      hubTag.element.className = hubClass(s)
       hubTag.element.innerHTML = hubText(s)
 
       const live = liveOf(s)
@@ -976,11 +1667,13 @@ function circuitUnit() {
         })
       }
       finTag.position.set(-ox * 0.62, -0.2, oz + 2.3)
-      finTag.element.innerHTML = finishedSummary(fin) || '<b>FINISHED</b> none yet'
+      finTag.element.innerHTML = finishedSummary(fin)
+      finTag.visible = fin.length > 0
       typeTag.position.set(ox * 0.62, -0.2, oz + 2.3)
-      typeTag.element.innerHTML = typesHtml(s.types)
+      typeTag.element.innerHTML = typesHtml(s.types, s.place)
+      typeTag.visible = s.types.length > 0
       nameTag.position.set(0, 0.1, oz + 1.5)
-      nameTag.element.textContent = s.name
+      nameTag.element.innerHTML = nameHtml(s)
     },
     tick(dt, t) {
       if (!calm) {
@@ -995,7 +1688,7 @@ function circuitUnit() {
 }
 
 const CIRCUIT = {
-  id: 'circuit', spacing: 22, view: [0, 3.1, 15], dist: 18, targetY: 1.2, sway: 0.55, bloom: [0.9, 0.6, 0.3], exposure: 0.95,
+  id: 'circuit', spacing: 17, halfWidth: 7.5, view: [0, 3.1, 15], dist: 18, targetY: 1.2, sway: 0.55, bloom: [0.9, 0.6, 0.3], exposure: 0.95,
   world(root) {
     scene.background = new THREE.Color(0x0b0221)
     scene.fog = new THREE.Fog(0x1e0638, 45, 260)
@@ -1305,9 +1998,9 @@ function workshopUnit(id) {
       working = s.main.isWorking
       boss.visorMat.color.setHex(working ? COLOR.main : COLOR.mainOff)
       boss.visorMat.emissive.setHex(working ? COLOR.main : 0x000000)
-      hubTag.element.className = `lbl hub${working ? '' : ' off'}`
+      hubTag.element.className = hubClass(s)
       hubTag.element.innerHTML = hubText(s)
-      nameTag.element.textContent = s.name
+      nameTag.element.innerHTML = nameHtml(s)
 
       const live = liveOf(s)
       sync(stations, live, () => makeStation(), group)
@@ -1333,7 +2026,8 @@ function workshopUnit(id) {
           return bot
         })
       }
-      typeTag.element.innerHTML = typesHtml(s.types)
+      typeTag.element.innerHTML = typesHtml(s.types, s.place)
+      waiting.visible = typeTag.visible = s.types.length > 0
 
       const fin = doneOf(s)
       const key = fin.map(a => `${a.id}:${a.status}`).join('|')
@@ -1354,7 +2048,8 @@ function workshopUnit(id) {
           crates.add(box)
         })
       }
-      finTag.element.innerHTML = finishedSummary(fin) || '<b>FINISHED</b> none yet'
+      finTag.element.innerHTML = finishedSummary(fin)
+      finTag.visible = fin.length > 0
     },
     tick(dt, t) {
       boss.arms[0].rotation.x = working && !calm ? -1.1 + Math.sin(t * 2.6) * 0.25 : -0.9
@@ -1377,7 +2072,7 @@ function workshopUnit(id) {
 }
 
 const WORKSHOP = {
-  id: 'workshop', spacing: 19, view: [13, 6.5, 17], dist: 18, targetY: 0.9, sway: 0, bloom: [0.3, 0.4, 0.85], exposure: 1.0,
+  id: 'workshop', spacing: 17.5, halfWidth: 7.5, view: [13, 6.5, 17], dist: 18, targetY: 0.9, sway: 0, bloom: [0.3, 0.4, 0.85], exposure: 1.0,
   world(root) {
     scene.background = new THREE.Color(0x8fb4d9)
     scene.fog = new THREE.Fog(0xe6a873, 70, 260)
@@ -1424,171 +2119,23 @@ const WORKSHOP = {
 }
 
 // ============================================================================
-// Theme 4: STAGE. The first look: glass towers filling on a round stage.
+// One unit per session, laid round a circle, in the chosen look.
 // ============================================================================
-function makeTower() {
-  const group = new THREE.Group()
-  const TOWER = 3.1
-  const base = cube(1.3, 0.14, 1.3, std(0x1b2747, { roughness: 0.6, metalness: 0.3 }), 0.07)
-  group.add(base)
-  const fillMat = std(COLOR.running, { emissive: COLOR.running, emissiveIntensity: 0.9, roughness: 0.35, transparent: true, opacity: 0.95 })
-  const fill = new THREE.Mesh(GEO.boxUp, fillMat)
-  fill.scale.set(0.82, 0.01, 0.82)
-  fill.position.y = 0.14
-  group.add(fill)
-  const glass = new THREE.Mesh(GEO.boxUp, std(0x9fdcff, { transparent: true, opacity: 0.08, roughness: 0.1, depthWrite: false }))
-  glass.scale.set(1.04, TOWER, 1.04)
-  glass.position.y = 0.14
-  const edges = new THREE.LineSegments(GEO.edgesUp, new THREE.LineBasicMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0.55 }))
-  edges.scale.copy(glass.scale)
-  edges.position.y = 0.14
-  group.add(glass, edges)
-  const arcMat = glow(COLOR.running, { transparent: true, opacity: 0.85, side: THREE.DoubleSide })
-  const arc = new THREE.Mesh(new THREE.RingGeometry(0.98, 1.1, 48, 1, 0, Math.PI * 1.5).rotateX(-Math.PI / 2), arcMat)
-  arc.position.y = 0.02
-  group.add(arc)
-  const tag = label('', 'agent')
-  tag.position.y = TOWER + 1.6
-  group.add(tag)
-  let height = 0.01
-  let target = 0.01
-  let known = true
-  const phase = Math.random() * 6
-  group.scale.setScalar(0.01)
-  return {
-    group,
-    update(a, now) {
-      const colour = tint(a)
-      fillMat.color.setHex(colour)
-      fillMat.emissive.setHex(colour)
-      arcMat.color.setHex(colour)
-      const f = fraction(a)
-      known = f !== null
-      target = known ? Math.max(0.06, f) * TOWER * 0.94 : TOWER * 0.94
-      setAgentLabel(tag, a, now)
-    },
-    tick(dt, t) {
-      group.scale.setScalar(easeTo(group.scale.x, 1, dt, 5))
-      height = easeTo(height, target, dt, 2.5)
-      fill.scale.y = height
-      const pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 3.2 + phase)
-      fillMat.opacity = known ? 0.95 : 0.35 + 0.45 * pulse
-      fillMat.emissiveIntensity = known ? 0.9 : 0.4 + 0.9 * pulse
-      if (!calm) arc.rotation.y -= dt * 1.6
-    },
-  }
-}
-
-function stageUnit() {
-  const group = new THREE.Group()
-  const STAGE = 7.4
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(STAGE, STAGE + 0.15, 0.5, 96), std(0x0c1530, { roughness: 0.75, metalness: 0.35 }))
-  disc.position.y = -0.25
-  group.add(disc)
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(STAGE + 0.02, 0.05, 8, 200).rotateX(Math.PI / 2), glow(COLOR.rim))
-  rim.position.y = 0.01
-  group.add(rim)
-  for (const r of [2.4, 4.8]) {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.02, r + 0.02, 128).rotateX(-Math.PI / 2), glow(COLOR.rim, { transparent: true, opacity: 0.25 }))
-    ring.position.y = 0.012
-    group.add(ring)
-  }
-  const hubMat = std(COLOR.mainOff, { emissive: COLOR.main, emissiveIntensity: 0, roughness: 0.4 })
-  group.add(cube(1.6, 0.55, 1.6, hubMat), cube(1.0, 0.5, 1.0, hubMat, 0.8))
-  const hubTag = label('', 'hub')
-  hubTag.position.y = 1.75
-  group.add(hubTag)
-  const nameTag = label('', 'sname')
-  nameTag.position.set(0, 0.2, STAGE + 1.1)
-  group.add(nameTag)
-
-  const towers = new Map()
-  const blocks = new Map()
-  const pedestals = new Map()
-  let working = false
-  const small = (colour, w, h, html, cls) => {
-    const g = new THREE.Group()
-    g.add(cube(w, h, w, std(colour, { emissive: colour, emissiveIntensity: 0.18, transparent: true, opacity: 0.9 })))
-    const tag = label(html, cls)
-    tag.position.y = h + 0.45
-    g.add(tag)
-    return { group: g, tick() {} }
-  }
-  return {
-    group,
-    update(s, now) {
-      working = s.main.isWorking
-      hubMat.color.setHex(working ? COLOR.main : COLOR.mainOff)
-      hubTag.element.className = `lbl hub${working ? '' : ' off'}`
-      hubTag.element.innerHTML = hubText(s)
-      nameTag.element.textContent = s.name
-      const live = liveOf(s)
-      sync(towers, live, () => makeTower(), group)
-      const tp = ringPositions(live.length, 3.05, -Math.PI / 2)
-      live.forEach((a, i) => { const tw = towers.get(a.id); tw.update(a, now); tw.goal = tp[i] })
-      const fin = doneOf(s)
-      sync(blocks, fin, a => small(COLOR[a.status] ?? COLOR.stopped, 0.8, 0.6,
-        `${a.status === 'done' ? '✓' : a.status === 'failed' ? '✕' : '■'} ${esc(a.description)}`, `small fin ${a.status}`), group)
-      const bp = ringPositions(fin.length, 5.3, Math.PI / 2 + 0.35)
-      fin.forEach((a, i) => { blocks.get(a.id).goal = bp[i] })
-      const types = s.types.slice(0, 14).map(name => ({ id: name }))
-      sync(pedestals, types, t => small(COLOR.type, 0.62, 0.32, esc(t.id), 'small'), group)
-      const pp = ringPositions(types.length, 6.6, -Math.PI / 2 + Math.PI / Math.max(1, types.length))
-      types.forEach((t, i) => { pedestals.get(t.id).goal = pp[i] })
-    },
-    tick(dt, t) {
-      hubMat.emissiveIntensity = working ? (calm ? 0.6 : 0.45 + 0.35 * Math.sin(t * 2.4)) : 0
-      for (const map of [towers, blocks, pedestals]) {
-        for (const item of map.values()) {
-          if (item.goal) {
-            item.group.position.x = easeTo(item.group.position.x, item.goal[0], dt, 3)
-            item.group.position.z = easeTo(item.group.position.z, item.goal[1], dt, 3)
-          }
-          item.tick(dt, t)
-        }
-      }
-    },
-  }
-}
-
-const STAGE = {
-  id: 'stage', spacing: 17.5, view: [17, 14, 20], dist: 28, targetY: 0, sway: 0, bloom: [0.7, 0.5, 0.22], exposure: 1.05,
-  world(root) {
-    scene.background = new THREE.Color(0x05070f)
-    scene.fog = new THREE.FogExp2(0x05070f, 0.012)
-    root.add(new THREE.HemisphereLight(0x9bb8ff, 0x0a0c18, 0.7))
-    const sun = new THREE.DirectionalLight(0xffffff, 1.3)
-    sun.position.set(-10, 18, 8)
-    root.add(sun)
-    const grid = new THREE.GridHelper(600, 300, 0x1a2550, 0x0d1430)
-    grid.material.transparent = true
-    grid.material.opacity = 0.35
-    grid.position.y = -0.52
-    root.add(grid)
-    return {}
-  },
-  unit: stageUnit,
-}
-
-// ============================================================================
-// The deck: one unit per session, laid round a circle, in the chosen theme.
-// ============================================================================
-const THEMES = { decks: DECKS, circuit: CIRCUIT, workshop: WORKSHOP, stage: STAGE }
+const THEMES = { decks: DECKS, circuit: CIRCUIT, workshop: WORKSHOP }
 let theme = null
 let root = null
 let world = {}
 const units = new Map()
 let sessionsNow = []
 let span = 0
+let active = false
+let running = false
 
+/** Sessions side by side across the front, so the camera sees each the same way. */
 function layout(count, spacing) {
-  if (count <= 1) return [[0, 0]]
-  const r = spacing / (2 * Math.sin(Math.PI / count))
-  return Array.from({ length: count }, (_, i) => {
-    const a = Math.PI / 2 + (i / count) * Math.PI * 2
-    return [Math.cos(a) * r, Math.sin(a) * r]
-  })
+  return Array.from({ length: Math.max(1, count) }, (_, i) => [(i - (count - 1) / 2) * spacing, 0])
 }
+const circling = () => rotateWanted && !theme.sway && units.size <= 1
 
 function setTheme(id) {
   for (const unit of units.values()) disposeTree(unit.group)
@@ -1603,10 +2150,9 @@ function setTheme(id) {
   world = theme.world(root) ?? {}
   ;[bloom.strength, bloom.radius, bloom.threshold] = theme.bloom
   renderer.toneMappingExposure = theme.exposure
-  document.body.dataset.look = theme.id
+  host.dataset.look = theme.id
   controls.target.set(0, theme.targetY, 0)
   camera.position.set(...theme.view).normalize().multiplyScalar(theme.dist).add(controls.target)
-  controls.autoRotate = rotateWanted && !theme.sway
   zoomed = false
   update(sessionsNow)
 }
@@ -1628,47 +2174,49 @@ function update(sessions) {
     let unit = units.get(s.id)
     if (!unit) {
       unit = theme.unit(s.id)
+      unit.group.userData.key = s.id
       unit.group.position.set(spots[i][0], 0, spots[i][1])
       root.add(unit.group)
       units.set(s.id, unit)
     }
     unit.spot = spots[i]
     unit.update(s, now)
+    // Its labels open the session's details when clicked.
+    unit.group.traverse(o => { if (o.isCSS2DObject) o.element.dataset.key = s.id })
   })
-  span = sessions.length <= 1 ? 0 : theme.spacing / (2 * Math.sin(Math.PI / sessions.length))
+  span = (Math.max(1, sessions.length) - 1) / 2 * theme.spacing
+  if (!interacting) controls.autoRotate = circling()
 }
 
 function resize() {
-  const w = innerWidth
-  const h = innerHeight
+  const w = host.clientWidth
+  const h = host.clientHeight
+  if (!w || !h) return
   renderer.setSize(w, h)
   composer.setSize(w, h)
   bloom.setSize(w, h)
   labels.setSize(w, h)
   camera.aspect = w / h
-  // Keep the scene centred in the room the list leaves.
-  const panel = document.body.classList.contains('nopanel') ? 0 : document.getElementById('panel').offsetWidth + 16
-  if (panel) camera.setViewOffset(w, h, panel / 2, 0, w, h)
-  else camera.clearViewOffset()
   camera.updateProjectionMatrix()
 }
-addEventListener('resize', resize)
-resize()
+new ResizeObserver(resize).observe(host)
 
 const clock = new THREE.Clock()
 const offset = new THREE.Vector3()
 const sph = new THREE.Spherical()
 function frame() {
+  if (!active || document.hidden) { running = false; return }
   const dt = Math.min(clock.getDelta(), 0.1)
   const t = clock.elapsedTime
-  // Pull the camera out as sessions are added, so every one stays in view.
-  const roomy = document.body.classList.contains('nopanel') ? 1 : 1.22
-  const want = (theme.dist + span * 1.6) * roomy
+  // Pull the camera back until the row of sessions fits across the stage.
+  const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect)
+  const want = Math.max(theme.dist, ((span + theme.halfWidth) / Math.tan(halfFov)) * 1.1)
   offset.copy(camera.position).sub(controls.target)
   sph.setFromVector3(offset)
   if (!zoomed) sph.radius = easeTo(sph.radius, want, dt, 1.5)
-  // Themes with a front sway back and forth across it rather than circling.
-  if (theme.sway && rotateWanted && !interacting && !calm) sph.theta = easeTo(sph.theta, Math.sin(t * 0.13) * theme.sway, dt, 1.2)
+  // Sway back and forth across the front (looks with a front, or a row of sessions) rather than circling.
+  const sway = theme.sway || (units.size > 1 ? 0.4 : 0)
+  if (sway && rotateWanted && !interacting && !calm) sph.theta = easeTo(sph.theta, Math.sin(t * 0.13) * sway, dt, 1.2)
   offset.setFromSpherical(sph)
   camera.position.copy(controls.target).add(offset)
 
@@ -1686,18 +2234,47 @@ function frame() {
   requestAnimationFrame(frame)
 }
 
+// A click (not a drag) on a session's piece of the scene opens its details in the rail.
+const ray = new THREE.Raycaster()
+const pointer = new THREE.Vector2()
+let downAt = null
+const keyOf = o => { for (; o; o = o.parent) if (o.userData.key) return o.userData.key; return null }
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY] })
+renderer.domElement.addEventListener('click', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5 || !root) return
+  const r = renderer.domElement.getBoundingClientRect()
+  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+  ray.setFromCamera(pointer, camera)
+  const hit = ray.intersectObjects(root.children, true).find(h => keyOf(h.object))
+  window.__deckSelect?.(hit ? keyOf(hit.object) : null)
+})
+
+function show(view, sessions) {
+  if (!theme || theme.id !== view) setTheme(view)
+  update(sessions)
+  active = true
+  resize()
+  if (!running) {
+    running = true
+    clock.getDelta()
+    requestAnimationFrame(frame)
+  }
+}
+
 window.__deckScene = {
-  update,
-  resize,
-  setTheme,
+  show,
+  hide() { active = false },
   toggleRotate() {
     rotateWanted = !rotateWanted
-    controls.autoRotate = rotateWanted && !theme.sway
+    controls.autoRotate = theme ? circling() : false
   },
 }
-setTheme(window.__deckThemeId)
-update(window.__deckSessions())
-requestAnimationFrame(frame)
+document.getElementById('three-labels').addEventListener('click', e => {
+  const key = e.target.closest('[data-key]')?.dataset.key
+  if (key) window.__deckSelect?.(key)
+})
+const first = window.__deckNow3d?.()
+if (first) show(first.view, first.sessions)
 </script>
 </body>
 </html>
