@@ -19,7 +19,22 @@ Chrome app window, falling back to your default browser), so you can drag it to 
 **F** to fill it. This window is full 3D: one round stage per open Claude session, glowing towers for working
 agents, a camera that turns by itself (drag to turn it yourself, scroll to zoom), and the list down the side.
 
-- `F` fullscreen · `L` show or hide the list · `R` camera turning on or off
+Four looks, switched with the buttons at the top or keys `1`-`4` (`T` cycles); the window remembers your pick:
+
+- **Decks**: a DJ booth. Each working agent is a turntable: the record spins while it works and the tonearm
+  crosses the record as it gets through its steps. The main session is the mixer, its meters moving while it
+  works. Finished agents and the agent types ready to start are record crates either side.
+- **Circuit**: a synthwave racetrack under a striped sun. Each agent races its own lane; its pod sits as far
+  round the lap as it has got, the glowing trail behind it the distance covered. With nothing to measure, the
+  pod keeps lapping with a short comet tail.
+- **Workshop**: a floating island of little robots. Each working agent hammers at its bench under a ring that
+  fills as it goes; the agent types that could start sit waiting on a bench; finished work is stacked in crates.
+  The main session is the foreman in the hard hat.
+- **Stage**: the glass towers from the pane, in full 3D.
+
+Add `#demo` to the window's address to try the looks on made-up agents.
+
+- `F` fullscreen · `L` show or hide the list · `R` camera moving on or off · `1`-`4` / `T` look
 - Every session with the deck feeds the same window, so it shows all of them at once. A session drops off
   about a minute after it closes.
 - The 3D part loads three.js from the internet when the window opens; offline, the list still updates.
