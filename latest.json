@@ -1,5 +1,6 @@
 {
-  "version": "1.38.0",
-  "notes": "New: Build a set fills a slot from chill to peak, Set filters by genre, and clicking a point on the set graph fixes an iffy jump.",
-  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/latest"
+  "version": "1.40.0",
+  "notes": "The site is live, so private copies end Tuesday 3 November - install this update for the details.",
+  "url": "https://yoshicmusic.com",
+  "min_version": "1.40.0"
 }
