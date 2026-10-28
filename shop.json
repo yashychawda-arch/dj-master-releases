@@ -1,5 +1,6 @@
 {
-  "version": "1.41.0",
-  "notes": "New: everything moves on springs, highlights slide to where you click, buttons answer on the press, and fewer letters roll.",
-  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.41.0"
+  "version": "1.42.0",
+  "notes": "Security maintenance: updated certificate, networking and media libraries. Re-run the installer to refresh your runtime.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.42.0",
+  "min_version": "1.42.0"
 }
