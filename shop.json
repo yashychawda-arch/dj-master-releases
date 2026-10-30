@@ -1,6 +1,6 @@
 {
-  "version": "1.43.0",
+  "version": "1.43.4",
   "min_version": "1.43.0",
-  "notes": "Security maintenance: setup now refreshes the package installer and build tools as well as application libraries. Re-run the installer.",
-  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.43.0"
+  "notes": "Smoother crate updates and folder previews; wallpaper stops scheduling while hidden or disabled.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.43.4"
 }
