@@ -1,6 +1,5 @@
 {
-  "version": "1.40.0",
-  "notes": "The site is live, so private copies end Tuesday 3 November - install this update for the details.",
-  "url": "https://yoshicmusic.com",
-  "min_version": "1.40.0"
+  "version": "1.0.0",
+  "notes": "Private copies keep working. Their updates come from Yoshi directly, not from this page.",
+  "url": "https://yoshicmusic.com"
 }
