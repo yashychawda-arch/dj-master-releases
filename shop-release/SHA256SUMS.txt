@@ -1,2 +1,2 @@
-f8842c9f836cca02c7cab003a971ed051ef09b27bf9ccad9ba91bb14d2a7c918  Yoshi.C.s.DJ.Master.1.46.0.Setup.exe
-d3fcdac3809af9d3db6fd75c21e9289b462e29835cb29e311f517eaff6f50f14  Yoshi.C.s.DJ.Master.1.46.0.Mac.zip
+6ec0135903b47e85f75bb60c12676c222c45c2834da00f4dc18729715e8aec25  Yoshi.C.s.DJ.Master.1.46.1.Setup.exe
+40ef3c7515e2655caf8fbd165300fe8e11f15380f3bc04484810a0d46e8926b6  Yoshi.C.s.DJ.Master.1.46.1.Mac.zip
