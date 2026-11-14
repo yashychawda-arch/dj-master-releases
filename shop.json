@@ -1,6 +1,6 @@
 {
-  "version": "1.43.4",
+  "version": "1.46.0",
   "min_version": "1.43.0",
-  "notes": "Smoother crate updates and folder previews; wallpaper stops scheduling while hidden or disabled.",
-  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.43.4"
+  "notes": "A new look: glass, a Dashboard, and extended intros - 16 or 32 bars of the song's own music, vocal out.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.46.0"
 }
