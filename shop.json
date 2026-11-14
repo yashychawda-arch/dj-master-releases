@@ -1,6 +1,6 @@
 {
-  "version": "1.46.0",
+  "version": "1.46.1",
   "min_version": "1.43.0",
-  "notes": "A new look: glass, a Dashboard, and extended intros - 16 or 32 bars of the song's own music, vocal out.",
-  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.46.0"
+  "notes": "A better request page for your guests: your night's name up top, requests left, and each request's status.",
+  "url": "https://github.com/yashychawda-arch/dj-master-releases/releases/tag/shop-v1.46.1"
 }
